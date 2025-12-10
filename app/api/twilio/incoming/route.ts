@@ -46,6 +46,35 @@ export async function POST(request: NextRequest) {
       twilio_sid: messageSid,
     })
 
+    const lower = body.trim().toLowerCase()
+    const isOptOut =
+      lower === "stop" ||
+      lower.includes("unsubscribe") ||
+      lower.includes("cancel") ||
+      lower === "end" ||
+      lower === "quit" ||
+      lower.includes("stop all") ||
+      lower.includes("do not text")
+
+    if (isOptOut) {
+      await updateLead(lead.id, { is_opted_out: true, opted_out_at: new Date().toISOString(), optout_reason: "keyword" })
+      await saveMessage({
+        lead_id: lead.id,
+        direction: "outbound",
+        content: "You’ve been unsubscribed — no more messages.",
+      })
+      const { error: smsError } = await sendSMS(lead.phone_number, "You’ve been unsubscribed — no more messages.", {
+        withFooter: false,
+        bypassSuppression: true,
+      })
+      if (smsError) {
+        console.error("Failed to send opt-out confirmation:", smsError)
+      }
+      return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+        headers: { "Content-Type": "text/xml" },
+      })
+    }
+
     // Update state if this is first response from a cold lead
     if (lead.conversation_state === "cold_lead" || lead.conversation_state === "contacted") {
       await updateLead(lead.id, { conversation_state: "contacted" })

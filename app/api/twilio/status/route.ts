@@ -13,10 +13,10 @@ export async function POST(request: NextRequest) {
 
     try {
       const supabase = await createClient()
-      await supabase.from("call_events").insert({
-        call_id: null,
-        event_type: "sms_status",
-        event_data: { sid: messageSid, status: messageStatus, to },
+      await supabase.from("sms_events").insert({
+        sid: messageSid,
+        to_number: to,
+        status: messageStatus,
       })
     } catch {}
 

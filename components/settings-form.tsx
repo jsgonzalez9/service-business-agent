@@ -153,6 +153,11 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
             <p>TWILIO_ACCOUNT_SID=your_account_sid</p>
             <p>TWILIO_AUTH_TOKEN=your_auth_token</p>
             <p>TWILIO_PHONE_NUMBER=+1234567890</p>
+            <p>TWILIO_NUMBER_POOL=+15551230001,+15551230002,+15551230003</p>
+            <p>SMS_MONTHLY_LIMIT_PER_NUMBER=10000</p>
+            <p>SMS_RATE_LIMIT_PER_MIN=25</p>
+            <p>SMS_QUIET_HOURS_START=8</p>
+            <p>SMS_QUIET_HOURS_END=21</p>
           </div>
           <p className="mt-4 text-sm text-muted-foreground">
             Set your Twilio webhook URL to: <code className="rounded bg-muted px-1">/api/twilio/incoming</code>

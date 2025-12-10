@@ -28,6 +28,10 @@ export async function POST() {
       "002_create_messages_table.sql",
       "003_create_agent_config_table.sql",
       "004_add_model_tracking.sql",
+      "005_create_call_tracking.sql",
+      "006_create_followup_sequences.sql",
+      "007_create_sms_events.sql",
+      "008_alter_leads_optout.sql",
     ]
 
     const executed: Record<string, boolean> = {}

@@ -7,16 +7,16 @@ export async function GET() {
     const since = new Date()
     since.setMinutes(since.getMinutes() - 60)
     const { data: sent, error } = await supabase
-      .from("call_events")
-      .select("event_data, created_at")
-      .eq("event_type", "sms_sent")
+      .from("sms_events")
+      .select("from_number, created_at")
+      .eq("status", "sent")
       .gte("created_at", since.toISOString())
       .limit(2000)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
     const perNumber: Record<string, number> = {}
     for (const row of sent || []) {
-      const from = (row as any).event_data?.from
+      const from = (row as any).from_number
       if (typeof from === "string") perNumber[from] = (perNumber[from] || 0) + 1
     }
 
