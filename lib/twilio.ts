@@ -182,6 +182,17 @@ export async function sendSMS(
         continue
       }
     }
+    try {
+      const supabase = await createClient()
+      await supabase.from("sms_events").insert({
+        sid: null,
+        to_number: to,
+        from_number: candidates[0],
+        status: "failed",
+        error: lastError || "Failed to send SMS",
+        body,
+      })
+    } catch {}
     return { sid: null, error: lastError || "Failed to send SMS" }
   } catch (error) {
     console.error("Error sending SMS:", error)
