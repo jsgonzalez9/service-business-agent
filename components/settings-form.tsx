@@ -19,6 +19,8 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
     arv_multiplier: initialConfig?.arv_multiplier?.toString() || "0.70",
     follow_up_hours: initialConfig?.follow_up_hours?.toString() || "24",
     max_follow_ups: initialConfig?.max_follow_ups?.toString() || "3",
+    followup_backoff_minutes: (initialConfig as any)?.followup_backoff_minutes?.toString() || "15",
+    followup_max_attempts: (initialConfig as any)?.followup_max_attempts?.toString() || "3",
   })
   const [health, setHealth] = useState<Record<string, number>>({})
   const [loadingHealth, setLoadingHealth] = useState(false)
@@ -45,6 +47,8 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
           arv_multiplier: Number.parseFloat(config.arv_multiplier),
           follow_up_hours: Number.parseInt(config.follow_up_hours),
           max_follow_ups: Number.parseInt(config.max_follow_ups),
+          followup_backoff_minutes: Number.parseInt(config.followup_backoff_minutes),
+          followup_max_attempts: Number.parseInt(config.followup_max_attempts),
         }),
       })
       const data = await response.json()
@@ -139,6 +143,28 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
               placeholder="3"
             />
             <p className="mt-1 text-sm text-muted-foreground">Maximum follow-up messages per lead</p>
+          </div>
+          <div>
+            <Label htmlFor="followup_backoff_minutes">Backoff Minutes</Label>
+            <Input
+              id="followup_backoff_minutes"
+              type="number"
+              value={config.followup_backoff_minutes}
+              onChange={(e) => setConfig((prev) => ({ ...prev, followup_backoff_minutes: e.target.value }))}
+              placeholder="15"
+            />
+            <p className="mt-1 text-sm text-muted-foreground">Minutes to wait before retrying failed follow-up</p>
+          </div>
+          <div>
+            <Label htmlFor="followup_max_attempts">Max Retry Attempts</Label>
+            <Input
+              id="followup_max_attempts"
+              type="number"
+              value={config.followup_max_attempts}
+              onChange={(e) => setConfig((prev) => ({ ...prev, followup_max_attempts: e.target.value }))}
+              placeholder="3"
+            />
+            <p className="mt-1 text-sm text-muted-foreground">Max retries per follow-up message</p>
           </div>
         </CardContent>
       </Card>

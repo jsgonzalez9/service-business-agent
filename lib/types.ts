@@ -46,7 +46,7 @@ export interface Message {
   direction: "inbound" | "outbound"
   content: string
   twilio_sid: string | null
-  model_used: "gpt-4.0-mini" | "gpt-5" | "gpt-5.1" | null
+  model_used: "gpt-5-mini" | "gpt-4.0-mini" | "gpt-5" | "gpt-5.1" | null
   was_escalated: boolean | null
   created_at: string
 }
@@ -58,6 +58,8 @@ export interface AgentConfig {
   arv_multiplier: number
   follow_up_hours: number
   max_follow_ups: number
+  followup_backoff_minutes?: number
+  followup_max_attempts?: number
   created_at: string
   updated_at: string
 }

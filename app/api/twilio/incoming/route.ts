@@ -138,12 +138,13 @@ export async function POST(request: NextRequest) {
       console.error("Failed to send SMS:", error)
     }
 
+    const savedModel = (response.modelUsed === "gpt-5.1" ? "gpt-5" : response.modelUsed) as "gpt-5-mini" | "gpt-5" | null
     await saveMessage({
       lead_id: lead.id,
       direction: "outbound",
       content: response.message,
       twilio_sid: outgoingSid || undefined,
-      model_used: response.modelUsed,
+      model_used: savedModel || null,
       was_escalated: response.escalated,
     })
 

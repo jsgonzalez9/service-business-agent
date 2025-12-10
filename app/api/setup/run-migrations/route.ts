@@ -34,6 +34,7 @@ export async function POST() {
       "008_alter_leads_optout.sql",
       "009_create_a2p_tables.sql",
       "010_alter_followup_queue.sql",
+      "011_alter_agent_config_followup.sql",
     ]
 
     const executed: Record<string, boolean> = {}

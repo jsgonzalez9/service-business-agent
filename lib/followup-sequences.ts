@@ -1,6 +1,7 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
+import { getAgentConfig } from "@/lib/wholesaling-agent"
 
 // 12-message SMS follow-up sequence for wholesaling
 const FOLLOWUP_MESSAGES = [
@@ -109,7 +110,8 @@ export async function getPendingFollowUps(limit = 50): Promise<
   const supabase = await createClient()
 
   const now = new Date().toISOString()
-  const maxAttempts = Number(process.env.FOLLOWUP_MAX_ATTEMPTS || 3)
+  const agentCfg = await getAgentConfig()
+  const maxAttempts = Number(agentCfg.followup_max_attempts ?? process.env.FOLLOWUP_MAX_ATTEMPTS ?? 3)
 
   const { data, error } = await supabase
     .from("follow_up_sequences")
@@ -196,7 +198,8 @@ export async function getLeadFollowUpSequence(leadId: string) {
 
 export async function markFollowUpFailed(sequenceId: string, errMsg: string): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient()
-  const backoffMinutes = 15
+  const agentCfg = await getAgentConfig()
+  const backoffMinutes = Number(agentCfg.followup_backoff_minutes ?? process.env.FOLLOWUP_BACKOFF_MINUTES ?? 15)
   const next = new Date()
   next.setMinutes(next.getMinutes() + backoffMinutes)
   const { error } = await supabase
