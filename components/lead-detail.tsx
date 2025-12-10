@@ -339,6 +339,28 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
                 {markingSigned ? "Marking..." : "Mark Signed"}
               </Button>
             )}
+            <Button
+              variant="outline"
+              onClick={async () => {
+                try {
+                  const resp = await fetch("/api/closer/handoff", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ leadId: lead.id }),
+                  })
+                  const data = await resp.json()
+                  if (data.success) {
+                    alert("Handoff initiated")
+                  } else {
+                    alert(data.error || "Failed to handoff")
+                  }
+                } catch {
+                  alert("Failed to handoff")
+                }
+              }}
+            >
+              Handoff to Closer
+            </Button>
             <a href={`/deals/summary/${lead.id}`} className="inline-flex items-center">
               <Button variant="outline">
                 <FileText className="mr-2 h-4 w-4" />
