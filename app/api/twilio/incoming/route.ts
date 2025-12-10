@@ -5,6 +5,7 @@ import { sendSMS } from "@/lib/twilio"
 import { triggerVoiceCall } from "@/lib/voice-call-actions"
 import { notifyHotLead } from "@/lib/notify"
 import { deriveTagsFromMessage } from "@/lib/tagging"
+import { createClient } from "@/lib/supabase/server"
 
 export async function POST(request: NextRequest) {
   try {
@@ -58,6 +59,12 @@ export async function POST(request: NextRequest) {
       lower.includes("stop all") ||
       lower.includes("do not text")
 
+    const isOptIn =
+      lower === "start" ||
+      lower === "yes" ||
+      lower === "y" ||
+      lower.includes("unstop") ||
+      lower.includes("subscribe")
     if (isOptOut) {
       await updateLead(lead.id, { is_opted_out: true, opted_out_at: new Date().toISOString(), optout_reason: "keyword" })
       await saveMessage({
@@ -69,9 +76,57 @@ export async function POST(request: NextRequest) {
         withFooter: false,
         bypassSuppression: true,
       })
+      try {
+        const supabase = await createClient()
+        await supabase
+          .from("consents")
+          .insert({ lead_id: lead.id, phone_number: lead.phone_number, event: "opt_out", source: "keyword", message_sid: messageSid })
+      } catch {}
       if (smsError) {
         console.error("Failed to send opt-out confirmation:", smsError)
       }
+      return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+        headers: { "Content-Type": "text/xml" },
+      })
+    }
+    if (isOptIn) {
+      await updateLead(lead.id, {
+        is_opted_out: false,
+        optout_reason: null,
+        consent_status: "opt_in" as any,
+        consented_at: new Date().toISOString(),
+        consent_source: "keyword",
+      } as any)
+      try {
+        const supabase = await createClient()
+        await supabase
+          .from("consents")
+          .insert({ lead_id: lead.id, phone_number: lead.phone_number, event: "opt_in", source: "keyword", message_sid: messageSid })
+      } catch {}
+      await saveMessage({
+        lead_id: lead.id,
+        direction: "outbound",
+        content: "Thanks for confirming — we’ll text you about your property. Reply STOP to unsubscribe.",
+      })
+      await sendSMS(lead.phone_number, "Thanks for confirming — we'll text you about your property. Reply STOP to unsubscribe.", {
+        withFooter: false,
+        bypassSuppression: true,
+      })
+      return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+        headers: { "Content-Type": "text/xml" },
+      })
+    }
+    if (lower === "help" || lower.includes("help")) {
+      await saveMessage({
+        lead_id: lead.id,
+        direction: "outbound",
+        content:
+          "Help: We send messages about property offers. Msg&Data rates may apply. Reply STOP to unsubscribe. For support, reply here.",
+      })
+      await sendSMS(lead.phone_number, "Help: We send messages about property offers. Reply STOP to unsubscribe.", {
+        withFooter: false,
+        bypassSuppression: true,
+      })
       return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
         headers: { "Content-Type": "text/xml" },
       })

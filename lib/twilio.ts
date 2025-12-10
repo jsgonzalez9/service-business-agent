@@ -150,6 +150,7 @@ export async function sendSMS(
       footerParts.push("Real estate lead generation")
     }
     footerParts.push("Msg & data rates may apply")
+    footerParts.push("Reply HELP for help")
     footerParts.push("Reply STOP to unsubscribe")
     const footerText = footerParts.join(" • ")
     const footer = (opts?.withFooter ?? true) ? `\n\n${footerText}` : ""
