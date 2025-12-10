@@ -30,6 +30,9 @@ export interface Lead {
   contract_link: string | null
   last_message_at: string | null
   follow_up_count: number
+  pipeline_status?: "NEW" | "WARM" | "HOT" | "DEAD" | "FOLLOW-UP"
+  tags?: string[] | null
+  score?: number
   is_opted_out?: boolean
   opted_out_at?: string | null
   optout_reason?: string | null

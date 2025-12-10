@@ -94,15 +94,21 @@ export function LeadList({ leads, selectedLead, onSelectLead }: LeadListProps) {
                   <MapPin className="h-3 w-3" />
                   <span className="truncate">{lead.address}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-3 w-3" />
-                  <span>{lead.phone_number}</span>
-                </div>
+              <div className="flex items-center gap-2">
+                <Phone className="h-3 w-3" />
+                <span>{lead.phone_number}</span>
               </div>
-              {lead.last_message_at && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Last activity: {new Date(lead.last_message_at).toLocaleDateString()}
-                </p>
+              {lead.pipeline_status && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">{lead.pipeline_status}</Badge>
+                  {typeof lead.score === "number" && <span className="text-xs">Score: {lead.score}</span>}
+                </div>
+              )}
+            </div>
+            {lead.last_message_at && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Last activity: {new Date(lead.last_message_at).toLocaleDateString()}
+              </p>
               )}
             </div>
           ))
