@@ -47,6 +47,7 @@ const stateLabels: Partial<Record<ConversationState, string>> = {
 
 export function LeadList({ leads, selectedLead, onSelectLead }: LeadListProps) {
   const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState<string>("")
 
   const filteredLeads = leads.filter(
     (lead) =>
@@ -67,6 +68,13 @@ export function LeadList({ leads, selectedLead, onSelectLead }: LeadListProps) {
             className="pl-9"
           />
         </div>
+        <div className="mt-3 flex gap-2">
+          <Input
+            placeholder="Pipeline filter: NEW/WARM/HOT/FOLLOW-UP"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          />
+        </div>
       </div>
       <div className="flex-1 overflow-y-auto">
         {filteredLeads.length === 0 ? (
@@ -74,7 +82,9 @@ export function LeadList({ leads, selectedLead, onSelectLead }: LeadListProps) {
             <p>No leads found</p>
           </div>
         ) : (
-          filteredLeads.map((lead) => (
+          filteredLeads
+            .filter((l) => (statusFilter ? (l.pipeline_status || "").toLowerCase() === statusFilter.toLowerCase() : true))
+            .map((lead) => (
             <div
               key={lead.id}
               onClick={() => onSelectLead(lead)}

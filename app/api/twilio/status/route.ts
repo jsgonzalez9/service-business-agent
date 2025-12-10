@@ -28,7 +28,9 @@ export async function POST(request: NextRequest) {
         status: normalized,
         error: errorCode ? `Twilio ${errorCode}` : null,
       })
-    } catch {}
+    } catch (e) {
+      console.error("SMS status persistence error:", e)
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

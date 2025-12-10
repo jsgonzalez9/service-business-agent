@@ -35,6 +35,9 @@ export async function POST() {
       "009_create_a2p_tables.sql",
       "010_alter_followup_queue.sql",
       "011_alter_agent_config_followup.sql",
+      "012_alter_leads_mortgage.sql",
+      "013_create_conversation_summaries.sql",
+      "014_create_property_photos.sql",
     ]
 
     const executed: Record<string, boolean> = {}

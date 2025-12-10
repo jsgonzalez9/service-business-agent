@@ -37,6 +37,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { FollowUpSequencesView } from "@/components/followup-sequences-view"
+import { createSupabaseBrowser } from "@/lib/supabase/client"
 
 interface LeadDetailProps {
   lead: Lead
@@ -61,6 +62,20 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
     loadMessages()
     setArv(lead.arv?.toString() || "")
     setRepairs(lead.repair_estimate?.toString() || "")
+    const supabase = createSupabaseBrowser()
+    const channel = supabase
+      .channel(`messages_${lead.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "messages", filter: `lead_id=eq.${lead.id}` },
+        () => {
+          loadMessages()
+        },
+      )
+      .subscribe()
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [lead.id, lead.arv, lead.repair_estimate])
 
   async function loadMessages() {
@@ -270,6 +285,20 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
     )
   }
 
+  async function handleUpdateLeadMeta(partial: Partial<Lead>) {
+    try {
+      const resp = await fetch(`/api/leads/${lead.id}/update`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(partial),
+      })
+      const data = await resp.json()
+      if (data.success && data.lead) {
+        onLeadUpdated(data.lead as Lead)
+      }
+    } catch {}
+  }
+
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
@@ -437,10 +466,55 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
         <div className="w-80 overflow-y-auto p-4 space-y-4">
           <Card>
             <CardHeader>
+              <CardTitle className="text-base">Lead Details</CardTitle>
+              <CardDescription>Edit status, tags, score</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Tags comma-separated"
+                  defaultValue={(lead.tags || []).join(",")}
+                  onBlur={(e) =>
+                    handleUpdateLeadMeta({
+                      tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean),
+                    })
+                  }
+                />
+                <Input
+                  placeholder="Score 0-5"
+                  type="number"
+                  defaultValue={lead.score || 0}
+                  onBlur={(e) => handleUpdateLeadMeta({ score: Number.parseInt(e.target.value) })}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Pipeline Status (NEW/WARM/HOT/DEAD/FOLLOW-UP)"
+                  defaultValue={lead.pipeline_status || "NEW"}
+                  onBlur={(e) => handleUpdateLeadMeta({ pipeline_status: e.target.value as any })}
+                />
+                <Input placeholder="Notes" defaultValue={lead.notes || ""} onBlur={(e) => handleUpdateLeadMeta({ notes: e.target.value })} />
+              </div>
+              <div className="mt-2">
+                <iframe
+                  title="map"
+                  className="h-48 w-full rounded border border-border"
+                  src={`https://www.google.com/maps?q=${encodeURIComponent(lead.address)}&output=embed`}
+                />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
               <CardTitle className="text-base">Offer Calculator</CardTitle>
               <CardDescription>MAO = (ARV x 0.7) - Repairs - Fee</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setRepairs(String(Math.round(Number(arv || "0") * 0.08)))}>Light</Button>
+                <Button variant="outline" onClick={() => setRepairs(String(Math.round(Number(arv || "0") * 0.15)))}>Medium</Button>
+                <Button variant="outline" onClick={() => setRepairs(String(Math.round(Number(arv || "0") * 0.25)))}>Heavy</Button>
+              </div>
               <div>
                 <label className="mb-1 block text-sm text-muted-foreground">ARV (After Repair Value)</label>
                 <Input type="number" placeholder="e.g. 200000" value={arv} onChange={(e) => setArv(e.target.value)} />
@@ -493,6 +567,19 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    await fetch("/api/conversations/summary", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: lead.id }) })
+                    alert("Summary generated")
+                  } catch {
+                    alert("Failed to generate summary")
+                  }
+                }}
+              >
+                Generate Conversation Summary
+              </Button>
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10">
                   <Zap className="mr-1 h-3 w-3" />

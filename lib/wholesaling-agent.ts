@@ -263,6 +263,7 @@ export async function generateAgentResponse(
   const shouldEscalate = shouldEscalateToNodeB(incomingMessage, lead.conversation_state)
   const systemPrompt = shouldEscalate ? NODE_B_SYSTEM_PROMPT : NODE_A_SYSTEM_PROMPT
 
+  const tone = lead.pipeline_status === "HOT" ? "closer, professional, concise" : "friendly, helpful, concise"
   const leadContext = `
 LEAD INFORMATION:
 - Name: ${lead.name}
@@ -273,6 +274,7 @@ LEAD INFORMATION:
 - Motivation: ${lead.motivation || "Unknown"}
 - Timeline: ${lead.timeline || "Unknown"}
 - Price Expectation: ${lead.price_expectation ? `$${lead.price_expectation.toLocaleString()}` : "Unknown"}
+- Mortgage Owed: ${typeof lead.mortgage_owed === "number" ? `$${lead.mortgage_owed.toLocaleString()}` : "Unknown"}
 - ARV (if available): ${lead.arv ? `$${lead.arv.toLocaleString()}` : "Not yet determined"}
 - Repair Estimate: ${lead.repair_estimate ? `$${lead.repair_estimate.toLocaleString()}` : "Not yet determined"}
 - Offer Amount: ${lead.offer_amount ? `$${lead.offer_amount.toLocaleString()}` : "Not yet made"}
@@ -282,6 +284,8 @@ COMPANY CONFIG:
 - Company Name: ${config.company_name}
 - Wholesaling Fee: $${config.wholesaling_fee.toLocaleString()}
 - ARV Multiplier: ${config.arv_multiplier}
+ 
+TONE: ${tone}
 `
 
   const conversationContext = conversationHistory
@@ -335,7 +339,7 @@ ${conversationContext || "No previous messages"}
 LATEST MESSAGE FROM SELLER:
 ${incomingMessage}
 
-Generate an appropriate SMS response to qualify this lead. Focus on gathering information about property condition, motivation, timeline, and price expectations.
+Generate an appropriate SMS response to qualify this lead. Focus on gathering information about property condition, motivation, timeline, price expectations, and mortgage owed if mentioned.
 
 Also analyze call intent - the seller may be hinting they want to talk on the phone instead of text.
 
@@ -351,7 +355,8 @@ Respond in JSON format:
     "propertyCondition": "extracted or null",
     "motivation": "extracted or null",
     "timeline": "extracted or null",
-    "priceExpectation": "number or null"
+    "priceExpectation": "number or null",
+    "mortgageOwed": "number or null"
   },
   "suggestedState": "new state or null",
   "shouldMakeOffer": true/false,
@@ -397,6 +402,10 @@ Respond in JSON format:
     newState = "offer_made"
   } else if (parsed.suggestedState) {
     newState = parsed.suggestedState
+  }
+
+  if (parsed.extractedInfo?.mortgageOwed) {
+    updatedLead.mortgage_owed = Number(parsed.extractedInfo.mortgageOwed)
   }
 
   const callIntent: CallIntentAction = parsed.callIntent || { action: "none" }

@@ -23,6 +23,7 @@ export interface Lead {
   motivation: string | null
   timeline: string | null
   price_expectation: number | null
+  mortgage_owed?: number | null
   arv: number | null
   repair_estimate: number | null
   offer_amount: number | null
