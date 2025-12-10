@@ -20,6 +20,18 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
     follow_up_hours: initialConfig?.follow_up_hours?.toString() || "24",
     max_follow_ups: initialConfig?.max_follow_ups?.toString() || "3",
   })
+  const [health, setHealth] = useState<Record<string, number>>({})
+  const [loadingHealth, setLoadingHealth] = useState(false)
+
+  async function loadHealth() {
+    setLoadingHealth(true)
+    try {
+      const resp = await fetch("/api/sms/health")
+      const data = await resp.json()
+      if (data.success) setHealth(data.perNumber || {})
+    } catch {}
+    setLoadingHealth(false)
+  }
 
   async function handleSave() {
     setSaving(true)
@@ -145,6 +157,30 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
           <p className="mt-4 text-sm text-muted-foreground">
             Set your Twilio webhook URL to: <code className="rounded bg-muted px-1">/api/twilio/incoming</code>
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Phone Provider Health</CardTitle>
+          <CardDescription>Last-hour sends per number to monitor rate limiting</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={loadHealth} disabled={loadingHealth}>
+            {loadingHealth ? "Loading..." : "Load Health"}
+          </Button>
+          <div className="mt-3 space-y-2 font-mono text-sm">
+            {Object.keys(health).length === 0 ? (
+              <p className="text-muted-foreground">No data yet</p>
+            ) : (
+              Object.entries(health).map(([from, count]) => (
+                <div key={from} className="flex items-center justify-between">
+                  <span>{from}</span>
+                  <span>{count}</span>
+                </div>
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
 

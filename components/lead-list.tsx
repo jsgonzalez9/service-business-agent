@@ -13,7 +13,7 @@ interface LeadListProps {
   onSelectLead: (lead: Lead) => void
 }
 
-const stateColors: Record<ConversationState, string> = {
+const stateColors: Partial<Record<ConversationState, string>> = {
   cold_lead: "bg-muted text-muted-foreground",
   contacted: "bg-blue-500/10 text-blue-500",
   qualified: "bg-primary/10 text-primary",
@@ -23,9 +23,13 @@ const stateColors: Record<ConversationState, string> = {
   contract_signed: "bg-success/10 text-success",
   closed: "bg-success/10 text-success",
   lost: "bg-destructive/10 text-destructive",
+  warm_call_requested: "bg-orange-500/10 text-orange-500",
+  schedule_call: "bg-teal-500/10 text-teal-500",
+  ready_for_offer_call: "bg-emerald-500/10 text-emerald-500",
+  text_only: "bg-gray-500/10 text-gray-500",
 }
 
-const stateLabels: Record<ConversationState, string> = {
+const stateLabels: Partial<Record<ConversationState, string>> = {
   cold_lead: "Cold",
   contacted: "Contacted",
   qualified: "Qualified",
@@ -35,6 +39,10 @@ const stateLabels: Record<ConversationState, string> = {
   contract_signed: "Signed",
   closed: "Closed",
   lost: "Lost",
+  warm_call_requested: "Call Requested",
+  schedule_call: "Scheduled Call",
+  ready_for_offer_call: "Offer Call",
+  text_only: "Text Only",
 }
 
 export function LeadList({ leads, selectedLead, onSelectLead }: LeadListProps) {

@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server"
 
 // Webhook for Twilio status callbacks (delivery reports)
 export async function POST(request: NextRequest) {
@@ -10,8 +11,14 @@ export async function POST(request: NextRequest) {
 
     console.log(`[SMS Status] SID: ${messageSid}, Status: ${messageStatus}, To: ${to}`)
 
-    // Could update message status in database here if needed
-    // For MVP, we just log the status
+    try {
+      const supabase = await createClient()
+      await supabase.from("call_events").insert({
+        call_id: null,
+        event_type: "sms_status",
+        event_data: { sid: messageSid, status: messageStatus, to },
+      })
+    } catch {}
 
     return NextResponse.json({ success: true })
   } catch (error) {

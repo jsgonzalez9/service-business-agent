@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+ 
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,9 +35,7 @@ import {
   Calendar,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { getLeadMessages, updateLead, deleteLead } from "@/lib/lead-actions"
-import { calculateMAO } from "@/lib/wholesaling-agent"
-import { scheduleFollowUpSequence } from "@/lib/followup-sequences"
+import { Badge } from "@/components/ui/badge"
 import { FollowUpSequencesView } from "@/components/followup-sequences-view"
 
 interface LeadDetailProps {
@@ -67,8 +65,14 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
 
   async function loadMessages() {
     setLoading(true)
-    const msgs = await getLeadMessages(lead.id)
-    setMessages(msgs)
+    try {
+      const resp = await fetch(`/api/leads/${lead.id}/messages`)
+      const data = await resp.json()
+      const msgs = Array.isArray(data.messages) ? (data.messages as Message[]) : []
+      setMessages(msgs)
+    } catch {
+      setMessages([])
+    }
     setLoading(false)
   }
 
@@ -123,19 +127,27 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
     let offerAmount = lead.offer_amount
 
     if (arvNum && repairsNum) {
-      offerAmount = calculateMAO(arvNum, repairsNum, 10000, 0.7)
+      offerAmount = arvNum * 0.7 - repairsNum - 10000
     }
 
-    const { lead: updatedLead, error } = await updateLead(lead.id, {
-      arv: arvNum,
-      repair_estimate: repairsNum,
-      offer_amount: offerAmount,
-    })
-
-    if (updatedLead) {
-      onLeadUpdated(updatedLead)
-    } else {
-      alert(error || "Failed to update")
+    try {
+      const resp = await fetch(`/api/leads/${lead.id}/update`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          arv: arvNum,
+          repair_estimate: repairsNum,
+          offer_amount: offerAmount,
+        }),
+      })
+      const data = await resp.json()
+      if (data.success && data.lead) {
+        onLeadUpdated(data.lead as Lead)
+      } else {
+        alert(data.error || "Failed to update")
+      }
+    } catch (e) {
+      alert("Failed to update")
     }
   }
 
@@ -190,12 +202,17 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
   async function handleScheduleSequence() {
     setSchedulingSequence(true)
     try {
-      const result = await scheduleFollowUpSequence(lead.id)
-      if (result.success) {
+      const resp = await fetch(`/api/followup/schedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId: lead.id }),
+      })
+      const data = await resp.json()
+      if (data.success) {
         setSequenceScheduled(true)
         alert("12-message follow-up sequence scheduled!")
       } else {
-        alert(result.error || "Failed to schedule sequence")
+        alert(data.error || "Failed to schedule sequence")
       }
     } catch (error) {
       console.error("Error scheduling sequence:", error)
@@ -205,16 +222,21 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
   }
 
   async function handleDelete() {
-    const { error } = await deleteLead(lead.id)
-    if (!error) {
-      onLeadDeleted(lead.id)
-    } else {
-      alert(error)
+    try {
+      const resp = await fetch(`/api/leads/${lead.id}`, { method: "DELETE" })
+      const data = await resp.json()
+      if (data.success) {
+        onLeadDeleted(lead.id)
+      } else {
+        alert(data.error || "Failed to delete")
+      }
+    } catch {
+      alert("Failed to delete")
     }
   }
 
   const calculatedMAO =
-    arv && repairs ? calculateMAO(Number.parseFloat(arv), Number.parseFloat(repairs), 10000, 0.7) : null
+    arv && repairs ? Number.parseFloat(arv) * 0.7 - Number.parseFloat(repairs) - 10000 : null
 
   const canSendContract = lead.offer_amount && ["offer_accepted", "qualified"].includes(lead.conversation_state)
   const canMarkSigned = lead.conversation_state === "contract_sent"

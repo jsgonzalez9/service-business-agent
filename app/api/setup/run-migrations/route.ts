@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
+import { NextResponse } from "next/server"
 import fs from "fs"
 import path from "path"
 
@@ -10,7 +11,7 @@ export async function POST() {
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      return Response.json({ success: false, error: "Missing Supabase credentials" }, { status: 400 })
+      return NextResponse.json({ success: false, error: "Missing Supabase credentials" }, { status: 400 })
     }
 
     const supabase = createServerClient(supabaseUrl, supabaseServiceKey, {
@@ -58,9 +59,9 @@ export async function POST() {
       }
     }
 
-    return Response.json({ success: true, executed })
+    return NextResponse.json({ success: true, executed })
   } catch (error) {
     console.error("[v0] Migration error:", error)
-    return Response.json({ success: false, error: "Failed to run migrations", executed: {} }, { status: 500 })
+    return NextResponse.json({ success: false, error: "Failed to run migrations", executed: {} }, { status: 500 })
   }
 }

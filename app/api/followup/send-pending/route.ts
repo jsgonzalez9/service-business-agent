@@ -15,7 +15,8 @@ export async function POST() {
         // Send SMS
         const result = await sendSMS(followUp.phone_number, followUp.message)
 
-        if (result.success) {
+        const ok = !result.error && !!result.sid
+        if (ok) {
           // Mark as sent
           await markFollowUpAsSent(followUp.id)
           sentCount++
