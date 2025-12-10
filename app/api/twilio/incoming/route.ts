@@ -132,6 +132,26 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    const deadPhrases = [
+      "not interested",
+      "stop contacting me",
+      "wrong number",
+      "nla",
+      "remove me",
+      "sold already",
+      "do not contact",
+      "no longer available",
+      "not selling",
+      "leave me alone",
+    ]
+    const isDead = deadPhrases.some((p) => lower.includes(p))
+    if (isDead) {
+      await updateLead(lead.id, { pipeline_status: "DEAD", score: 0, tags: Array.from(new Set([...(lead.tags || []), "dead"])) })
+      return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+        headers: { "Content-Type": "text/xml" },
+      })
+    }
+
     // Update state if this is first response from a cold lead
     if (lead.conversation_state === "cold_lead" || lead.conversation_state === "contacted") {
       await updateLead(lead.id, { conversation_state: "contacted" })

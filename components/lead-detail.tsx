@@ -57,6 +57,8 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
   const [markingSigned, setMarkingSigned] = useState(false)
   const [schedulingSequence, setSchedulingSequence] = useState(false)
   const [sequenceScheduled, setSequenceScheduled] = useState(false)
+  const [followReason, setFollowReason] = useState("")
+  const [followNextAction, setFollowNextAction] = useState("")
 
   useEffect(() => {
     loadMessages()
@@ -220,7 +222,7 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
       const resp = await fetch(`/api/followup/schedule`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ leadId: lead.id }),
+        body: JSON.stringify({ leadId: lead.id, reason: followReason, next_action: followNextAction }),
       })
       const data = await resp.json()
       if (data.success) {
@@ -321,6 +323,16 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
                 <Calendar className="mr-2 h-4 w-4" />
                 {schedulingSequence ? "Scheduling..." : "Schedule Sequence"}
               </Button>
+            )}
+            {!sequenceScheduled && (
+              <div className="flex items-center gap-2">
+                <Input placeholder="Reason" value={followReason} onChange={(e) => setFollowReason(e.target.value)} />
+                <Input
+                  placeholder="Next action"
+                  value={followNextAction}
+                  onChange={(e) => setFollowNextAction(e.target.value)}
+                />
+              </div>
             )}
             {canSendContract && (
               <Button onClick={handleSendContract} disabled={sendingContract} variant="default">
