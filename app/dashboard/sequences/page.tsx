@@ -5,6 +5,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
 
 export default function SequencesPage() {
   const [sequences, setSequences] = useState<any[]>([])
@@ -15,6 +18,60 @@ export default function SequencesPage() {
   const [active, setActive] = useState(true)
   const [newStep, setNewStep] = useState({ type: "sms", delay_minutes: 0, message: "", recording_url: "", step_index: 0 })
   const [health, setHealth] = useState<Record<string, any>>({})
+  const sensors = useSensors(useSensor(PointerSensor))
+
+  function SortableStep({ st }: { st: any }) {
+    const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: st.id })
+    const style = {
+      transform: transform ? CSS.Transform.toString(transform) : undefined,
+      transition,
+    }
+    return (
+      <div ref={setNodeRef} style={style} className="flex items-center gap-2 rounded border border-border p-2">
+        <span className="cursor-grab" {...attributes} {...listeners}>⋮⋮</span>
+        <Badge variant="outline">{st.step_index}</Badge>
+        <Badge variant="outline">{st.type}</Badge>
+        <span className="text-xs text-muted-foreground">Delay: {st.delay_minutes}m</span>
+        <span className="text-xs text-muted-foreground flex-1 truncate">
+          {st.type === "sms" ? (st.message || "") : (st.recording_url || "")}
+        </span>
+        <Button
+          variant="outline"
+          onClick={async () => {
+            await fetch(`/api/sequences/steps/${st.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ step_index: st.step_index - 1 }),
+            })
+            if (selected?.id) {
+              const resp = await fetch(`/api/sequences/${selected.id}/steps`)
+              const j = await resp.json()
+              setSteps(j.steps || [])
+            }
+          }}
+        >
+          Up
+        </Button>
+        <Button
+          variant="outline"
+          onClick={async () => {
+            await fetch(`/api/sequences/steps/${st.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ step_index: st.step_index + 1 }),
+            })
+            if (selected?.id) {
+              const resp = await fetch(`/api/sequences/${selected.id}/steps`)
+              const j = await resp.json()
+              setSteps(j.steps || [])
+            }
+          }}
+        >
+          Down
+        </Button>
+      </div>
+    )
+  }
 
   async function loadSequences() {
     const resp = await fetch("/api/sequences")
@@ -123,42 +180,29 @@ export default function SequencesPage() {
             ) : (
               <div className="space-y-3">
                 <div className="space-y-2">
-                  {steps.map((st) => (
-                    <div key={st.id} className="flex items-center gap-2 rounded border border-border p-2">
-                      <Badge variant="outline">{st.step_index}</Badge>
-                      <Badge variant="outline">{st.type}</Badge>
-                      <span className="text-xs text-muted-foreground">Delay: {st.delay_minutes}m</span>
-                      <span className="text-xs text-muted-foreground flex-1 truncate">
-                        {st.type === "sms" ? (st.message || "") : (st.recording_url || "")}
-                      </span>
-                      <Button
-                        variant="outline"
-                        onClick={async () => {
-                          await fetch(`/api/sequences/steps/${st.id}`, {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ step_index: st.step_index - 1 }),
-                          })
-                          loadSteps(selected.id)
-                        }}
-                      >
-                        Up
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={async () => {
-                          await fetch(`/api/sequences/steps/${st.id}`, {
-                            method: "PATCH",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ step_index: st.step_index + 1 }),
-                          })
-                          loadSteps(selected.id)
-                        }}
-                      >
-                        Down
-                      </Button>
-                    </div>
-                  ))}
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={async (evt: any) => {
+                      const { active, over } = evt
+                      if (!over || active.id === over.id) return
+                      const oldIndex = steps.findIndex((s: any) => s.id === active.id)
+                      const newIndex = steps.findIndex((s: any) => s.id === over.id)
+                      const newOrder = arrayMove(steps, oldIndex, newIndex)
+                      setSteps(newOrder)
+                      await fetch(`/api/sequences/${selected!.id}/steps/reorder`, {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ orderedStepIds: newOrder.map((x: any) => x.id) }),
+                      })
+                    }}
+                  >
+                    <SortableContext items={steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+                      {steps.map((st) => (
+                        <SortableStep key={st.id} st={st} />
+                      ))}
+                    </SortableContext>
+                  </DndContext>
                 </div>
                 <div className="space-y-2 rounded border border-border p-3">
                   <div className="grid grid-cols-2 gap-2">
@@ -219,6 +263,71 @@ export default function SequencesPage() {
                   >
                     Add Step
                   </Button>
+                  <div className="mt-4 space-y-3">
+                    <p className="text-xs text-muted-foreground">Rules per step</p>
+                    {steps.map((st) => (
+                      <div key={`${st.id}-rules`} className="rounded border border-border p-2">
+                        <p className="text-xs">Step {st.step_index} • {st.type}</p>
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Inbound reply within (min)</label>
+                            <Input
+                              type="number"
+                              defaultValue={0}
+                              onBlur={async (e) => {
+                                const minutes = Number(e.target.value || 0)
+                                const rules = { action: "skip", conditions: minutes > 0 ? [{ type: "inbound_reply_within", minutes }] : [] }
+                                await fetch(`/api/sequences/steps/${st.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rules }) })
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Pipeline status</label>
+                            <select
+                              multiple
+                              className="w-full rounded border border-border bg-background p-2 text-sm"
+                              onChange={async (e) => {
+                                const options = Array.from(e.target.selectedOptions).map((o) => o.value)
+                                const rules = { action: "skip", conditions: [{ type: "pipeline_status_in", statuses: options }] }
+                                await fetch(`/api/sequences/steps/${st.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rules }) })
+                              }}
+                            >
+                              <option value="DEAD">DEAD</option>
+                              <option value="APPOINTMENT SET">APPOINTMENT SET</option>
+                              <option value="HOT">HOT</option>
+                              <option value="NEW">NEW</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Lead opted-out</label>
+                            <select
+                              className="w-full rounded border border-border bg-background p-2 text-sm"
+                              onChange={async (e) => {
+                                const enabled = e.target.value === "true"
+                                const rules = { action: "complete", conditions: enabled ? [{ type: "lead_opted_out" }] : [] }
+                                await fetch(`/api/sequences/steps/${st.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rules }) })
+                              }}
+                            >
+                              <option value="false">disabled</option>
+                              <option value="true">enabled</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Sentiment high → jump to</label>
+                            <Input
+                              type="number"
+                              defaultValue={st.step_index}
+                              onBlur={async (e) => {
+                                const jump_to_step_index = Number(e.target.value || 0)
+                                const rules = { action: "jump", jump_to_step_index, conditions: [{ type: "sentiment_high" }] }
+                                await fetch(`/api/sequences/steps/${st.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rules }) })
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

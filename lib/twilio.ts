@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 const accountSid = process.env.TWILIO_ACCOUNT_SID
 const authToken = process.env.TWILIO_AUTH_TOKEN
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER
+const twilioCallerId = process.env.TWILIO_CALLER_ID
 const twilioNumberPool = (process.env.TWILIO_NUMBER_POOL || "")
   .split(",")
   .map((s) => s.trim())
@@ -82,6 +83,12 @@ export function getTwilioClient() {
     return null
   }
   return twilio(accountSid, authToken)
+}
+
+export function chooseCallerId(): string | null {
+  if (twilioCallerId && twilioCallerId.length > 0) return twilioCallerId
+  const pool = twilioNumberPool.length > 0 ? twilioNumberPool : (twilioPhoneNumber ? [twilioPhoneNumber] : [])
+  return pool.length > 0 ? pool[0] : null
 }
 
 export async function sendSMS(
