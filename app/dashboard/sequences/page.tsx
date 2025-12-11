@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core"
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from "@dnd-kit/core"
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 
@@ -18,7 +18,8 @@ export default function SequencesPage() {
   const [active, setActive] = useState(true)
   const [newStep, setNewStep] = useState({ type: "sms", delay_minutes: 0, message: "", recording_url: "", step_index: 0 })
   const [health, setHealth] = useState<Record<string, any>>({})
-  const sensors = useSensors(useSensor(PointerSensor))
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const [activeId, setActiveId] = useState<string | null>(null)
 
   function SortableStep({ st }: { st: any }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: st.id })
@@ -195,6 +196,14 @@ export default function SequencesPage() {
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ orderedStepIds: newOrder.map((x: any) => x.id) }),
                       })
+                      setActiveId(null)
+                    }}
+                    onDragStart={(evt: any) => {
+                      const { active } = evt
+                      setActiveId(String(active.id))
+                    }}
+                    onDragCancel={() => {
+                      setActiveId(null)
                     }}
                   >
                     <SortableContext items={steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
@@ -202,6 +211,23 @@ export default function SequencesPage() {
                         <SortableStep key={st.id} st={st} />
                       ))}
                     </SortableContext>
+                    <DragOverlay>
+                      {activeId && (() => {
+                        const st = steps.find((x) => x.id === activeId)
+                        if (!st) return null
+                        return (
+                          <div className="flex items-center gap-2 rounded border border-border bg-muted p-2 shadow-xl opacity-90">
+                            <span className="cursor-grabbing">⋮⋮</span>
+                            <Badge variant="outline">{st.step_index}</Badge>
+                            <Badge variant="outline">{st.type}</Badge>
+                            <span className="text-xs text-muted-foreground">Delay: {st.delay_minutes}m</span>
+                            <span className="text-xs text-muted-foreground flex-1 truncate">
+                              {st.type === "sms" ? (st.message || "") : (st.recording_url || "")}
+                            </span>
+                          </div>
+                        )
+                      })()}
+                    </DragOverlay>
                   </DndContext>
                 </div>
                 <div className="space-y-2 rounded border border-border p-3">

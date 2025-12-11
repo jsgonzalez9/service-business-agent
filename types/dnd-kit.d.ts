@@ -4,6 +4,7 @@ declare module "@dnd-kit/core" {
   export const PointerSensor: any
   export const useSensor: any
   export const useSensors: any
+  export const DragOverlay: any
 }
 declare module "@dnd-kit/sortable" {
   export const SortableContext: any
