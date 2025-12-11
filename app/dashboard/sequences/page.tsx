@@ -14,6 +14,7 @@ export default function SequencesPage() {
   const [description, setDescription] = useState("")
   const [active, setActive] = useState(true)
   const [newStep, setNewStep] = useState({ type: "sms", delay_minutes: 0, message: "", recording_url: "", step_index: 0 })
+  const [health, setHealth] = useState<Record<string, any>>({})
 
   async function loadSequences() {
     const resp = await fetch("/api/sequences")
@@ -36,6 +37,15 @@ export default function SequencesPage() {
     setDescription(selected?.description || "")
     setActive(!!selected?.active)
   }, [selected?.id])
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const resp = await fetch("/api/sequences/health")
+        const j = await resp.json()
+        setHealth(j.health || {})
+      } catch {}
+    })()
+  }, [])
 
   return (
     <div className="p-6 h-full">
@@ -53,7 +63,18 @@ export default function SequencesPage() {
                     <p className="font-medium text-sm">{s.name}</p>
                     <p className="text-xs text-muted-foreground">{s.description}</p>
                   </button>
-                  <Badge variant="outline">{s.active ? "active" : "inactive"}</Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{s.active ? "active" : "inactive"}</Badge>
+                    {health[s.id] && (
+                      <Badge variant="outline">
+                        {health[s.id].disabled > 0
+                          ? "Failing"
+                          : health[s.id].failing > 0
+                            ? "Warning"
+                            : "Healthy"}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
