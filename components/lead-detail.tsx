@@ -34,10 +34,12 @@ import {
   Brain,
   Calendar,
 } from "lucide-react"
+import { Phone } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { FollowUpSequencesView } from "@/components/followup-sequences-view"
 import { createSupabaseBrowser } from "@/lib/supabase/client"
+import { toast } from "sonner"
 
 interface LeadDetailProps {
   lead: Lead
@@ -59,6 +61,8 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
   const [sequenceScheduled, setSequenceScheduled] = useState(false)
   const [followReason, setFollowReason] = useState("")
   const [followNextAction, setFollowNextAction] = useState("")
+  const [callSummaries, setCallSummaries] = useState<any[]>([])
+  const [loadingCalls, setLoadingCalls] = useState(false)
 
   useEffect(() => {
     loadMessages()
@@ -92,6 +96,22 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
     }
     setLoading(false)
   }
+
+  async function loadCallSummaries() {
+    setLoadingCalls(true)
+    try {
+      const resp = await fetch(`/api/leads/${lead.id}/call-summaries`)
+      const data = await resp.json()
+      setCallSummaries(Array.isArray(data.summaries) ? data.summaries : [])
+    } catch {
+      setCallSummaries([])
+    }
+    setLoadingCalls(false)
+  }
+
+  useEffect(() => {
+    loadCallSummaries()
+  }, [lead.id])
 
   async function handleSendOutreach() {
     setSendingOutreach(true)
@@ -555,6 +575,8 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
                   variant="outline"
                   onClick={async () => {
                     try {
+                      const prevArv = lead.arv
+                      const prevOffer = lead.offer_amount
                       const resp = await fetch("/api/property/value/combined", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -577,6 +599,26 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
                         const updateData = await updateResp.json()
                         if (updateData.success && updateData.lead) {
                           onLeadUpdated(updateData.lead as Lead)
+                          toast("ARV updated", {
+                            action: {
+                              label: "Undo",
+                              onClick: async () => {
+                                const revertResp = await fetch(`/api/leads/${lead.id}/update`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    arv: prevArv,
+                                    offer_amount: prevOffer,
+                                  }),
+                                })
+                                const revertData = await revertResp.json()
+                                if (revertData.success && revertData.lead) {
+                                  onLeadUpdated(revertData.lead as Lead)
+                                  setArv(prevArv ? String(prevArv) : "")
+                                }
+                              },
+                            },
+                          })
                         }
                       } else {
                         alert(data.error || "Lookup failed")
@@ -636,6 +678,46 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
             </CardContent>
           </Card>
 
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Phone className="h-4 w-4" />
+                Call Summaries
+              </CardTitle>
+              <CardDescription>Latest recorded calls</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {loadingCalls ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : callSummaries.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No call summaries</p>
+              ) : (
+                callSummaries.map((s) => (
+                  <div key={s.id} className="rounded border border-border p-2">
+                    <div className="flex items-center gap-2 text-xs">
+                      <Badge variant="outline">{s.sentiment}</Badge>
+                      <Badge variant="outline">{s.intent}</Badge>
+                      <span>Urgency: {s.urgency ?? 0}</span>
+                      {typeof s.motivation === "number" && <span>Motivation: {s.motivation}</span>}
+                    </div>
+                    {s.summary && <p className="mt-1 text-sm">{s.summary}</p>}
+                    <div className="mt-1 space-y-1 text-xs text-muted-foreground">
+                      {s.objections && <p>Objections: {s.objections}</p>}
+                      {s.pain_points && <p>Pain: {s.pain_points}</p>}
+                      {s.decision_maker && <p>Decision Maker: {s.decision_maker}</p>}
+                      {s.next_action && <p>Next: {s.next_action}</p>}
+                    </div>
+                    {s.recording_url && (
+                      <a href={s.recording_url} target="_blank" rel="noopener noreferrer" className="mt-1 block text-xs text-primary">
+                        Recording
+                      </a>
+                    )}
+                  </div>
+                ))
+              )}
+              <Button variant="ghost" onClick={loadCallSummaries}>Refresh</Button>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">

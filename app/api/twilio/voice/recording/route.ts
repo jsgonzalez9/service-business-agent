@@ -27,10 +27,15 @@ export async function POST(request: Request) {
     let sentiment = "neutral"
     let intent = "unknown"
     let urgency = 0
+    let objections = ""
+    let pain_points = ""
+    let decision_maker = ""
+    let motivation = 0
+    let next_action = ""
     try {
       const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
       const prompt =
-        "Summarize the caller's intent in 2-3 sentences. Return JSON with keys: summary, sentiment (positive/neutral/negative), intent (motivated/hesitant/price_shopper/dead), urgency (0-5)."
+        "Extract call insights. Return JSON with keys: summary, sentiment (positive/neutral/negative), intent (motivated/hesitant/price_shopper/dead), urgency (0-5), objections, pain_points, decision_maker, motivation (0-5), next_action."
       const comp = await client.chat.completions.create({
         model: "gpt-5-mini",
         messages: [
@@ -46,6 +51,11 @@ export async function POST(request: Request) {
         sentiment = (j.sentiment || "neutral").toLowerCase()
         intent = (j.intent || "unknown").toLowerCase()
         urgency = Number(j.urgency || 0)
+        objections = j.objections || ""
+        pain_points = j.pain_points || ""
+        decision_maker = j.decision_maker || ""
+        motivation = Number(j.motivation || 0)
+        next_action = j.next_action || ""
       }
     } catch {}
 
@@ -57,6 +67,11 @@ export async function POST(request: Request) {
       intent,
       urgency,
       recording_url: audioUrl,
+      objections,
+      pain_points,
+      decision_maker,
+      motivation,
+      next_action,
     })
     return NextResponse.json({ success: true })
   } catch (e: any) {
