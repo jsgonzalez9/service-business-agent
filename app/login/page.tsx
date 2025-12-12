@@ -17,10 +17,23 @@ export default function LoginPage() {
     setError(null)
     try {
       const supabase = createSupabaseBrowser()
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { error, data } = await supabase.auth.signInWithPassword({ email, password })
       if (error) {
         setError(error.message)
       } else {
+        try {
+          const sess = data?.session || (await supabase.auth.getSession()).data.session
+          const at = sess?.access_token
+          const rt = sess?.refresh_token
+          if (at) {
+            const secure = window.location.protocol === "https:" ? "; Secure" : ""
+            document.cookie = `sb-access-token=${at}; Path=/; SameSite=Lax${secure}`
+          }
+          if (rt) {
+            const secure = window.location.protocol === "https:" ? "; Secure" : ""
+            document.cookie = `sb-refresh-token=${rt}; Path=/; SameSite=Lax${secure}`
+          }
+        } catch {}
         const next = new URLSearchParams(window.location.search).get("next") || "/dashboard"
         window.location.href = next
       }
