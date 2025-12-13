@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { saveMessage, updateLead } from "@/lib/lead-actions"
 import { sendSMS } from "@/lib/twilio"
 import { getAgentConfig } from "@/lib/wholesaling-agent"
+import { createServiceClient } from "@/lib/supabase/service"
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,8 +22,46 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 })
     }
 
-    // Generate contract link if not provided (placeholder for DocuSign integration)
-    const finalContractLink = contractLink || generateContractLink(lead, config.company_name)
+    // Generate contract link: prefer Supabase Storage signed URL from latest template
+    let finalContractLink = contractLink || ""
+    try {
+      if (!finalContractLink) {
+        const svc = createServiceClient()
+        const { data: templates } = await svc
+          .from("contract_templates")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(1)
+        const tpl = templates?.[0]
+        if (tpl && tpl.storage_path) {
+          const fileRes = await svc.storage.from("contracts").download(tpl.storage_path)
+          if (fileRes.data) {
+            const filename = tpl.storage_path.split("/").pop() || "contract.pdf"
+            const instancePath = `instances/${lead.id}/${Date.now()}-${filename}`
+            const uploadRes = await svc.storage.from("contracts").upload(instancePath, fileRes.data, {
+              cacheControl: "3600",
+              upsert: false,
+            } as any)
+            if (!uploadRes.error) {
+              const signed = await svc.storage.from("contracts").createSignedUrl(instancePath, 15 * 60)
+              if (!signed.error && signed.data?.signedUrl) {
+                finalContractLink = signed.data.signedUrl
+                await svc
+                  .from("contract_instances")
+                  .insert({ lead_id: lead.id, template_id: tpl.id, storage_path: instancePath, status: "sent" })
+                await svc
+                  .from("leads")
+                  .update({ contract_link: finalContractLink, conversation_state: "contract_sent" })
+                  .eq("id", lead.id)
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+    if (!finalContractLink) {
+      finalContractLink = generateContractLink(lead, config.company_name)
+    }
 
     // Compose message
     const message = `Great news, ${lead.name}! I've prepared the contract for ${lead.address} at $${lead.offer_amount?.toLocaleString()}. You can review and sign here: ${finalContractLink}`

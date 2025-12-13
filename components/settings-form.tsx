@@ -215,6 +215,66 @@ export function SettingsForm({ initialConfig }: SettingsFormProps) {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Contract Templates</CardTitle>
+          <CardDescription>Upload PDFs to store securely and send via SMS</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2">
+            <input id="tpl-file" type="file" accept="application/pdf" />
+            <Input id="tpl-name" placeholder="Template name" />
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const fileInput = document.getElementById("tpl-file") as HTMLInputElement
+                const nameInput = document.getElementById("tpl-name") as HTMLInputElement
+                if (!fileInput.files?.[0] || !nameInput.value) {
+                  alert("Pick a PDF and enter a name")
+                  return
+                }
+                const form = new FormData()
+                form.append("file", fileInput.files[0])
+                form.append("name", nameInput.value)
+                const resp = await fetch("/api/contracts/templates", { method: "POST", body: form })
+                const j = await resp.json()
+                if (!resp.ok) {
+                  alert(j.error || "Upload failed")
+                } else {
+                  alert("Template uploaded")
+                  fileInput.value = ""
+                  nameInput.value = ""
+                }
+              }}
+            >
+              Upload
+            </Button>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                await fetch("/api/contracts/setup", { method: "POST" })
+                alert("Bucket initialized")
+              }}
+            >
+              Initialize Bucket
+            </Button>
+          </div>
+          <div className="mt-2">
+            <Button
+              variant="ghost"
+              onClick={async () => {
+                const resp = await fetch("/api/contracts/templates")
+                const j = await resp.json()
+                const list = Array.isArray(j.templates) ? j.templates : []
+                alert(`Templates:\n${list.map((t: any) => `${t.name} (${t.storage_path})`).join("\n") || "none"}`)
+              }}
+            >
+              List Templates
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Button onClick={handleSave} disabled={saving} className="w-full">
         {saving ? "Saving..." : "Save Settings"}
       </Button>
