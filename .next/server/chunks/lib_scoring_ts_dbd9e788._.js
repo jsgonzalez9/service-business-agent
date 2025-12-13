@@ -1,0 +1,3 @@
+module.exports=[77618,e=>{"use strict";function t(e,t){let n=0,s=(e.motivation||"").toLowerCase();(s.includes("urgent")||s.includes("need")||s.includes("must")||s.includes("foreclosure"))&&(n+=20);let o=e.price_expectation||0,i=e.offer_amount||0;o&&i&&o<=1.2*i&&(n+=20);let l=(e.timeline||"").toLowerCase();(l.includes("week")||l.includes("asap")||l.includes("days"))&&(n+=15);let c=(e.property_condition||"").toLowerCase();return(c.includes("needs")||c.includes("repairs")||c.includes("distress"))&&(n+=15),n+=15*(t.slice(-5).length>=3),Math.max(0,Math.min(100,n-=Math.min(5*t.filter(e=>e.content.toLowerCase().includes("too low")||e.content.toLowerCase().includes("more")).length,15)))}e.s(["scoreLead",()=>t])}];
+
+//# sourceMappingURL=lib_scoring_ts_dbd9e788._.js.map

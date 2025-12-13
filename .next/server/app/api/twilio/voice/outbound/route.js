@@ -1,0 +1,11 @@
+var R=require("../../../../../chunks/[turbopack]_runtime.js")("server/app/api/twilio/voice/outbound/route.js")
+R.c("server/chunks/[root-of-the-server]__75178c06._.js")
+R.c("server/chunks/_e514e212._.js")
+R.c("server/chunks/479a2_next_dist_02a0f3b6._.js")
+R.c("server/chunks/node_modules__pnpm_9a2ea5d7._.js")
+R.c("server/chunks/[root-of-the-server]__1a1107a1._.js")
+R.c("server/chunks/[root-of-the-server]__a3fc24c8._.js")
+R.c("server/chunks/node_modules__pnpm_1810fd19._.js")
+R.c("server/chunks/_next-internal_server_app_api_twilio_voice_outbound_route_actions_89a42902.js")
+R.m(75446)
+module.exports=R.m(75446).exports

@@ -21,7 +21,7 @@ async function seedCache() {
         normalized_question: normalize(item.question),
         response_text: item.response,
         embedding: vec,
-      })
+      }, { onConflict: "intent,normalized_question" })
     if (error) {
       console.error("Insert failed:", error.message)
     } else {

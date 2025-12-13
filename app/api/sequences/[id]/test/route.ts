@@ -1,16 +1,17 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { sendSMS, getTwilioClient, chooseCallerId } from "@/lib/twilio"
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { phone_number } = await request.json()
     if (!phone_number) return NextResponse.json({ error: "phone_number required" }, { status: 400 })
+    const { id } = await context.params
     const supabase = await createClient()
     const { data: steps } = await supabase
       .from("sequence_steps")
       .select("*")
-      .eq("sequence_id", params.id)
+      .eq("sequence_id", id)
       .order("step_index", { ascending: true })
     const first = (steps || [])[0]
     if (first) {

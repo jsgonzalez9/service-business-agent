@@ -44,6 +44,23 @@ export interface Lead {
   optout_reason?: string | null
   created_at: string
   updated_at: string
+  assignment_pdf_path?: string | null
+  best_assignment_fee?: number | null
+  winning_buyer_id?: string | null
+  buyer_price?: number | null
+  buyer_contract_pdf_path?: string | null
+  seller_contract_status?: string | null
+  seller_contract_envelope_id?: string | null
+  seller_contract_signed_url?: string | null
+  buyer_contract_status?: string | null
+  buyer_contract_envelope_id?: string | null
+  buyer_contract_signed_url?: string | null
+  dispo_reviewed?: boolean | null
+  dispo_reviewed_at?: string | null
+  dispo_started_at?: string | null
+  offers_received?: number | null
+  dispo_status?: string | null
+  state_history?: any | null
 }
 
 export interface Message {

@@ -1,14 +1,15 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const payload = await request.json()
+    const { id } = await context.params
     const supabase = await createClient()
     const { data, error } = await supabase
       .from("sequence_steps")
       .insert({
-        sequence_id: params.id,
+        sequence_id: id,
         step_index: payload.step_index,
         type: payload.type,
         delay_minutes: payload.delay_minutes,
@@ -25,13 +26,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await context.params
     const supabase = await createClient()
     const { data, error } = await supabase
       .from("sequence_steps")
       .select("*")
-      .eq("sequence_id", params.id)
+      .eq("sequence_id", id)
       .order("step_index", { ascending: true })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true, steps: data })

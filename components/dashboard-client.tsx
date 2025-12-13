@@ -7,7 +7,7 @@ import { LeadDetail } from "@/components/lead-detail"
 import { AddLeadDialog } from "@/components/add-lead-dialog"
 import { CSVImportDialog } from "@/components/csv-import-dialog"
 import { Button } from "@/components/ui/button"
-import { Plus, MessageSquare, Users, TrendingUp, Clock, Settings, Upload } from "lucide-react"
+import { Plus, MessageSquare, Users, TrendingUp, Clock, Settings, Upload, FileText, List } from "lucide-react"
 
 interface DashboardClientProps {
   initialLeads: Lead[]
@@ -84,6 +84,30 @@ export function DashboardClient({ initialLeads }: DashboardClientProps) {
                 Settings
               </a>
             </Button>
+            <Button variant="outline" asChild>
+              <a href="/dashboard/buyers">
+                <Users className="mr-2 h-4 w-4" />
+                Buyers
+              </a>
+            </Button>
+            <Button variant="outline" asChild>
+              <a href="/dashboard/sequences">
+                <Clock className="mr-2 h-4 w-4" />
+                Sequences
+              </a>
+            </Button>
+            <Button variant="outline" asChild>
+              <a href="/dashboard/contracts">
+                <FileText className="mr-2 h-4 w-4" />
+                Contracts
+              </a>
+            </Button>
+            <Button variant="outline" asChild>
+              <a href="/dashboard/faq-cache">
+                <List className="mr-2 h-4 w-4" />
+                FAQ Cache
+              </a>
+            </Button>
             <Button variant="outline" onClick={() => setIsCSVImportOpen(true)}>
               <Upload className="mr-2 h-4 w-4" />
               Import CSV
@@ -142,7 +166,18 @@ export function DashboardClient({ initialLeads }: DashboardClientProps) {
       <div className="flex h-[calc(100vh-200px)]">
         {/* Lead List */}
         <div className="w-full border-r border-border md:w-96">
-          <LeadList leads={leads} selectedLead={selectedLead} onSelectLead={setSelectedLead} />
+          <LeadList
+            leads={leads}
+            selectedLead={selectedLead}
+            onSelectLead={(lead) => {
+              setSelectedLead(lead)
+              try {
+                const url = new URL(window.location.href)
+                url.searchParams.set("lead", lead.id)
+                window.history.replaceState({}, "", url.toString())
+              } catch {}
+            }}
+          />
         </div>
 
         {/* Lead Detail (desktop) */}

@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { orderedStepIds } = await request.json()
     if (!Array.isArray(orderedStepIds) || orderedStepIds.length === 0) {
       return NextResponse.json({ error: "orderedStepIds required" }, { status: 400 })
     }
+    const { id } = await context.params
     const supabase = await createClient()
     let idx = 0
     for (const stepId of orderedStepIds) {

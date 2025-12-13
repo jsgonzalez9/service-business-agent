@@ -1,0 +1,11 @@
+var R=require("../../../../../chunks/[turbopack]_runtime.js")("server/app/api/leads/[id]/followup-sequences/route.js")
+R.c("server/chunks/479a2_next_3d9f318e._.js")
+R.c("server/chunks/4b6e4_@opentelemetry_api_build_esm_9cee443b._.js")
+R.c("server/chunks/27832_@supabase_realtime-js_dist_module_0be41ec7._.js")
+R.c("server/chunks/aa976_@supabase_storage-js_dist_module_66d73280._.js")
+R.c("server/chunks/681a9_@supabase_auth-js_dist_module_1ba3d394._.js")
+R.c("server/chunks/node_modules__pnpm_0a84868c._.js")
+R.c("server/chunks/[root-of-the-server]__11baeb22._.js")
+R.c("server/chunks/ce889_server_app_api_leads_[id]_followup-sequences_route_actions_a4e94c7e.js")
+R.m("[project]/node_modules/.pnpm/next@16.0.7_@opentelemetry+api@1.9.0_react-dom@19.2.0_react@19.2.0__react@19.2.0/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/leads/[id]/followup-sequences/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)")
+module.exports=R.m("[project]/node_modules/.pnpm/next@16.0.7_@opentelemetry+api@1.9.0_react-dom@19.2.0_react@19.2.0__react@19.2.0/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/app/api/leads/[id]/followup-sequences/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)").exports

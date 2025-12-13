@@ -94,6 +94,7 @@ export function LeadList({ leads, selectedLead, onSelectLead }: LeadListProps) {
                 "cursor-pointer border-b border-border p-4 transition-colors hover:bg-muted/50",
                 selectedLead?.id === lead.id && "bg-muted",
               )}
+              onClick={() => onSelectLead(lead)}
             >
               <div className="mb-2 flex items-start justify-between">
                 <div className="flex items-center gap-2">
@@ -101,6 +102,7 @@ export function LeadList({ leads, selectedLead, onSelectLead }: LeadListProps) {
                     type="checkbox"
                     checked={!!selected[lead.id]}
                     onChange={(e) => setSelected((prev) => ({ ...prev, [lead.id]: e.target.checked }))}
+                    onClick={(e) => e.stopPropagation()}
                   />
                   <h3 className="font-medium text-foreground" onClick={() => onSelectLead(lead)}>{lead.name}</h3>
                 </div>

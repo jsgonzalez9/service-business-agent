@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { sequenceId } = await request.json()
+    const { id } = await context.params
     const supabase = await createClient()
     const { data: firstStep } = await supabase
       .from("sequence_steps")
@@ -15,7 +16,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const nextRun = new Date(Date.now() + ((first?.delay_minutes as number) || 0) * 60_000).toISOString()
     const { data, error } = await supabase
       .from("lead_sequences")
-      .insert({ lead_id: params.id, sequence_id: sequenceId, current_step_index: first?.step_index || 0, next_run_at: nextRun })
+      .insert({ lead_id: id, sequence_id: sequenceId, current_step_index: first?.step_index || 0, next_run_at: nextRun })
       .select()
       .single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -25,13 +26,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
   }
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await context.params
     const supabase = await createClient()
     const { data: enrollments } = await supabase
       .from("lead_sequences")
       .select("*")
-      .eq("lead_id", params.id)
+      .eq("lead_id", id)
       .order("created_at", { ascending: false })
       .limit(5)
     const ids = Array.from(new Set((enrollments || []).map((e: any) => e.id)))

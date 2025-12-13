@@ -61,14 +61,15 @@ export async function POST(req: NextRequest) {
   ]
   const pdfBuf = buildPdf(lines)
   const path = `assignments/${lead.id}-${Date.now()}-templated.pdf`
-  const blob = new Blob([pdfBuf], { type: "application/pdf" })
+  const bytes = new Uint8Array(pdfBuf)
+  const blob = new Blob([bytes], { type: "application/pdf" })
   const { error: upErr } = await svc.storage.from("contracts").upload(path, blob, { cacheControl: "3600", upsert: false } as any)
   if (upErr) return NextResponse.json({ error: upErr.message || "Upload failed" }, { status: 500 })
   const { data: signed } = await svc.storage.from("contracts").createSignedUrl(path, 60 * 60 * 24 * 7)
   await supabase.from("leads").update({ winning_buyer_id: buyerId, assignment_pdf_path: path, best_assignment_fee: fee ?? lead.best_assignment_fee }).eq("id", leadId)
   try {
     if (lead.phone_number) await sendSMS(lead.phone_number, `Assignment prepared. Link: ${signed?.signedUrl || "[dashboard]"}`, { withFooter: false, bypassSuppression: true })
-    if (buyer.phone) await sendSMS(buyer.phone, `Assignment prepared for ${lead.address}. Link: ${signed?.signedUrl || "[dashboard]"}`, { withFooter: false, bypassSuppression: true })
+    // Do not send assignment link to buyer. Buyer will receive AC purchase agreement separately.
   } catch {}
   return NextResponse.json({ success: true, path, signedUrl: signed?.signedUrl || null })
 }

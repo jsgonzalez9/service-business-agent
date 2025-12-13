@@ -1,0 +1,3 @@
+module.exports=[23875,t=>{"use strict";function n(t,n,o,e){return Math.max(0,Math.round(t*e-n-o))}function o(t,n,o){let e=Math.round(1.02*n),u=Math.round(.9*n),a=o??t.offer_amount??0;return a?a>e?{allowed:!1,nextAmount:e}:a<u?{allowed:!1,nextAmount:u}:{allowed:!0,nextAmount:a}:{allowed:!0,nextAmount:u}}t.s(["enforceRails",()=>o,"mao",()=>n])}];
+
+//# sourceMappingURL=lib_negotiation-rails_ts_f535b509._.js.map

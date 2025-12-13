@@ -1,0 +1,3 @@
+{
+  "/api/sequences/[id]/steps/reorder/route": "app/api/sequences/[id]/steps/reorder/route.js"
+}

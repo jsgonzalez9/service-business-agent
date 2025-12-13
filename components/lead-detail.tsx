@@ -403,6 +403,29 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
                   <FileSignature className="mr-2 h-4 w-4" />
                   {sendingContract ? "Sending..." : "Send Contract"}
                 </Button>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const resp = await fetch("/api/sign/ds/seller", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ leadId: lead.id }),
+                      })
+                      const data = await resp.json()
+                      if (data.success) {
+                        onLeadUpdated({ ...lead, seller_contract_status: "sent", seller_contract_signed_url: data.signingUrl })
+                        alert("Seller e‑sign link generated")
+                      } else {
+                        alert(data.error || "Failed to create e‑sign")
+                      }
+                    } catch {
+                      alert("Failed to create e‑sign")
+                    }
+                  }}
+                >
+                  Send Seller for e‑Sign
+                </Button>
               </>
             )}
             {canMarkSigned && (

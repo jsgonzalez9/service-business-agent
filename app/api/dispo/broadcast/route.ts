@@ -8,6 +8,10 @@ export async function POST(req: NextRequest) {
   if (!leadId) return NextResponse.json({ error: "leadId required" }, { status: 400 })
   const { data: lead } = await supabase.from("leads").select("*").eq("id", leadId).single()
   if (!lead) return NextResponse.json({ error: "not found" }, { status: 404 })
+  const { data: cfg } = await supabase.from("agent_config").select("*").limit(1).single()
+  if ((cfg?.auto_dispo_require_human_confirm ?? true) && !lead.dispo_reviewed) {
+    return NextResponse.json({ error: "human_review_required" }, { status: 412 })
+  }
   const { data: interests } = await supabase.from("buyer_interests").select("*,buyers(id,name,phone)").limit(50)
   const msg = `Deal: ${lead.address} • Offer $${lead.offer_amount?.toLocaleString() || "-"} • Reply if interested.`
   for (const i of interests || []) {

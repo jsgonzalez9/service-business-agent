@@ -1,14 +1,14 @@
-[00:00:02.075] Server  WARN     ⚠ Minimum recommended TypeScript version is v5.1.0, older versions can potentially be incompatible with Next.js. Detected: 5.0.2
-[00:00:02.460] Server  LOG      ✓ Ready in 1551ms
-[00:00:13.788] Server  LOG      ○ Compiling / ...
-[00:00:16.879] Server  ERROR    ⨯ Error: Your project's URL and Key are required to create a Supabase client!
-
-Check your Supabase project's API settings to find these values
-
-https://supabase.com/dashboard/project/_/settings/api
-[00:00:17.431] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
-[00:00:17.431] Browser ERROR   uncaughtError: Error: Your project's URL and Key are required to create a Supabase client!
-
-Check your Supabase project's API settings to find these values
-
-https://supabase.com/dashboard/project/_/settings/api
+[00:00:02.424] Server  WARN     ⚠ Minimum recommended TypeScript version is v5.1.0, older versions can potentially be incompatible with Next.js. Detected: 5.0.2
+[00:00:02.534] Server  WARN     ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+[00:00:02.867] Server  LOG      ✓ Ready in 1969ms
+[00:00:06.818] Server  LOG      ○ Compiling /dashboard/faq-cache ...
+[00:00:12.048] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:04:43.781] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:04:52.565] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:04:57.130] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:05:33.845] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:05:53.156] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:06:04.634] Browser ERROR   unhandledRejection: i: Failed to connect to MetaMask
+[00:12:25.602] Server  LOG      ✓ Compiled in 117ms
+[00:20:13.393] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:23:35.550] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold

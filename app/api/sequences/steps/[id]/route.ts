@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 
-export async function PATCH(request: Request, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const payload = await request.json()
+    const { id } = await context.params
     const supabase = await createClient()
     const { data, error } = await supabase
       .from("sequence_steps")
@@ -15,7 +16,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         recording_url: payload.recording_url,
         active: payload.active,
       })
-      .eq("id", params.id)
+      .eq("id", id)
       .select()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ success: true, step: (data || [])[0] || null })
