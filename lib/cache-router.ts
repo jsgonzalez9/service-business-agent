@@ -18,11 +18,11 @@ export function normalizeQuestion(raw: string): string {
 export function classifyIntent(raw: string): Intent {
   const q = raw.toLowerCase()
   const has = (...words: string[]) => words.some((w) => q.includes(w))
-  if (has("how does", "how it works", "process", "timeline", "close", "closing", "offer", "cash offer")) return "FAQ_PROCESS"
-  if (has("fee", "fees", "commission", "commissions", "costs", "closing costs")) return "FAQ_FEES"
-  if (has("scam", "legitimate", "legit", "credentials", "license", "are you real")) return "FAQ_TRUST"
-  if (has("contract", "assignable", "assignability", "cancel", "cancellation", "inspection", "inspection period")) return "FAQ_CONTRACT"
-  if (has("tenants", "mortgage", "liens", "inherited", "probate")) return "FAQ_GENERAL"
+  if (has("how does", "how it works", "process", "timeline", "close", "closing", "offer", "cash offer", "sell fast", "same-day", "comps", "valuation")) return "FAQ_PROCESS"
+  if (has("fee", "fees", "commission", "commissions", "costs", "closing costs", "assignment fee")) return "FAQ_FEES"
+  if (has("scam", "legitimate", "legit", "credentials", "license", "are you real", "wholesaler")) return "FAQ_TRUST"
+  if (has("contract", "assignable", "assignability", "cancel", "cancellation", "inspection", "inspection period", "earnest", "valid", "validity", "expires")) return "FAQ_CONTRACT"
+  if (has("tenants", "mortgage", "liens", "inherited", "probate", "as-is", "repairs", "access", "lockbox", "opt-out", "unsubscribe", "agent", "broker", "bankruptcy", "multiple properties")) return "FAQ_GENERAL"
   if (has("address", "street", "zip", "city", "state")) return "PROPERTY_SPECIFIC"
   if (has("price", "offer more", "counter", "too low", "higher")) return "NEGOTIATION"
   if (has("stress", "urgent", "emergency", "foreclosure", "behind on payments")) return "EMOTIONAL"
@@ -64,4 +64,3 @@ export async function storeCached(intent: Intent, qNorm: string, text: string): 
     .from("cached_responses")
     .upsert({ intent, normalized_question: qNorm, response_text: text, updated_at: new Date().toISOString() }, { onConflict: "intent,normalized_question" })
 }
-

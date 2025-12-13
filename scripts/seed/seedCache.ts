@@ -2,6 +2,10 @@ import OpenAI from "openai"
 import { createClient } from "@supabase/supabase-js"
 import { FAQ_SEED } from "./faqSeed"
 
+function normalize(raw: string): string {
+  return raw.toLowerCase().replace(/[^\w\s]/g, "").replace(/\s+/g, " ").trim()
+}
+
 async function seedCache() {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! })
   const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
@@ -11,7 +15,13 @@ async function seedCache() {
     const vec = emb.data[0].embedding
     const { error } = await supabase
       .from("cached_responses")
-      .insert({ intent: item.intent, canonical_question: item.question, response_text: item.response, embedding: vec })
+      .upsert({
+        intent: item.intent,
+        canonical_question: item.question,
+        normalized_question: normalize(item.question),
+        response_text: item.response,
+        embedding: vec,
+      })
     if (error) {
       console.error("Insert failed:", error.message)
     } else {
