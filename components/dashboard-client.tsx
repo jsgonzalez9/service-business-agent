@@ -145,7 +145,7 @@ export function DashboardClient({ initialLeads }: DashboardClientProps) {
           <LeadList leads={leads} selectedLead={selectedLead} onSelectLead={setSelectedLead} />
         </div>
 
-        {/* Lead Detail */}
+        {/* Lead Detail (desktop) */}
         <div className="hidden flex-1 md:block">
           {selectedLead ? (
             <LeadDetail lead={selectedLead} onLeadUpdated={handleLeadUpdated} onLeadDeleted={handleLeadDeleted} />
@@ -160,6 +160,14 @@ export function DashboardClient({ initialLeads }: DashboardClientProps) {
         </div>
       </div>
 
+      {/* Lead Detail (mobile) */}
+      <div className="md:hidden">
+        {selectedLead && (
+          <div className="border-t border-border">
+            <LeadDetail lead={selectedLead} onLeadUpdated={handleLeadUpdated} onLeadDeleted={handleLeadDeleted} />
+          </div>
+        )}
+      </div>
       <AddLeadDialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen} onLeadAdded={handleLeadAdded} />
       <CSVImportDialog
         open={isCSVImportOpen}
