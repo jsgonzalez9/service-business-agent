@@ -33,6 +33,7 @@ import {
   Zap,
   Brain,
   Calendar,
+  TrendingUp,
 } from "lucide-react"
 import { Phone } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -68,6 +69,9 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
   const [selectedSequenceId, setSelectedSequenceId] = useState<string>("")
   const [enrollments, setEnrollments] = useState<any[]>([])
   const [enrollmentSteps, setEnrollmentSteps] = useState<any[]>([])
+  const [buyerOffers, setBuyerOffers] = useState<any[]>([])
+  const [loadingOffers, setLoadingOffers] = useState(false)
+  const [selectedOfferId, setSelectedOfferId] = useState<string>("")
 
   useEffect(() => {
     loadMessages()
@@ -892,6 +896,286 @@ export function LeadDetail({ lead, onLeadUpdated, onLeadDeleted }: LeadDetailPro
               </CardContent>
             </Card>
           )}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <TrendingUp className="h-4 w-4" />
+                Disposition
+              </CardTitle>
+              <CardDescription>Match buyers and broadcast</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded border border-border p-2">
+                  <p className="text-xs text-muted-foreground">Offers Received</p>
+                  <p className="text-lg font-semibold text-foreground">{(lead as any).offers_received ?? 0}</p>
+                </div>
+                <div className="rounded border border-border p-2">
+                  <p className="text-xs text-muted-foreground">Best Assignment Fee</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {(lead as any).best_assignment_fee ? `$${Number((lead as any).best_assignment_fee).toLocaleString()}` : "-"}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={async () => {
+                    setLoadingOffers(true)
+                    try {
+                      const resp = await fetch(`/api/dispo/offers?leadId=${lead.id}`)
+                      const j = await resp.json()
+                      setBuyerOffers(Array.isArray(j.offers) ? j.offers : [])
+                    } catch {
+                      setBuyerOffers([])
+                    }
+                    setLoadingOffers(false)
+                  }}
+                >
+                  {loadingOffers ? "Loading..." : "Load Buyer Offers"}
+                </Button>
+                {buyerOffers.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      const feeStr = prompt("Final assignment fee (USD)") || ""
+                      const fee = Number.parseInt(feeStr)
+                      if (!fee || fee <= 0) return alert("Enter a valid fee")
+                      const resp = await fetch(`/api/dispo/close`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ leadId: lead.id, assignmentFee: fee }),
+                      })
+                      const j = await resp.json()
+                      alert(resp.ok ? "Deal closed" : j.error || "Failed")
+                    }}
+                  >
+                    Convert to Assignment
+                  </Button>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                {buyerOffers.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      if (!selectedOfferId) return alert("Select an offer")
+                      const offer = buyerOffers.find((o) => o.id === selectedOfferId)
+                      if (!offer) return alert("Offer not found")
+                      const fee = offer.amount || Number.parseInt(prompt("Assignment fee (USD)") || "0")
+                      if (!fee || fee <= 0) return alert("Enter a valid fee")
+                      const resp = await fetch(`/api/dispo/assign/template`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ leadId: lead.id, buyerId: offer.buyer_id || null, assignmentFee: fee }),
+                      })
+                      const j = await resp.json()
+                      alert(resp.ok ? "Templated assignment generated and links sent" : j.error || "Failed")
+                    }}
+                  >
+                    Generate Assignment (Template)
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  onClick={async () => {
+                    const resp = await fetch(`/api/dispo/assign/link?leadId=${lead.id}`)
+                    const j = await resp.json()
+                    if (!resp.ok || !j.url) return alert(j.error || "No assignment available")
+                    window.open(j.url, "_blank")
+                  }}
+                >
+                  View Assignment
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    const resp = await fetch(`/api/dispo/assign/resend`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ leadId: lead.id, target: "seller" }),
+                    })
+                    const j = await resp.json()
+                    alert(resp.ok ? "Resent to seller" : j.error || "Failed")
+                  }}
+                >
+                  Resend to Seller
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    const resp = await fetch(`/api/dispo/assign/resend`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ leadId: lead.id, target: "buyer" }),
+                    })
+                    const j = await resp.json()
+                    alert(resp.ok ? "Resent to buyer" : j.error || "Failed")
+                  }}
+                >
+                  Resend to Buyer
+                </Button>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const resp = await fetch(`/api/dispo/matches?leadId=${lead.id}`)
+                      const j = await resp.json()
+                      const list = Array.isArray(j.matches) ? j.matches : []
+                      alert(`Matches: ${list.length}`)
+                    } catch {
+                      alert("Failed to load matches")
+                    }
+                  }}
+                >
+                  Find Buyers
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const resp = await fetch(`/api/dispo/broadcast`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: lead.id }) })
+                      const j = await resp.json()
+                      alert(resp.ok ? `Broadcasted to ${j.count}` : j.error || "Failed")
+                    } catch {
+                      alert("Broadcast failed")
+                    }
+                  }}
+                >
+                  Broadcast
+                </Button>
+              </div>
+              {buyerOffers.length > 0 && (
+                <div className="rounded border border-border">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-muted-foreground">
+                        <th className="p-2 text-left">Select</th>
+                        <th className="p-2 text-left">Amount</th>
+                        <th className="p-2 text-left">From</th>
+                        <th className="p-2 text-left">Notes</th>
+                        <th className="p-2 text-left">When</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {buyerOffers.map((o) => (
+                        <tr key={o.id} className="border-t border-border">
+                          <td className="p-2">
+                            <input
+                              type="radio"
+                              name="selectedOffer"
+                              checked={selectedOfferId === o.id}
+                              onChange={() => setSelectedOfferId(o.id)}
+                            />
+                          </td>
+                          <td className="p-2">{typeof o.amount === "number" ? `$${Number(o.amount).toLocaleString()}` : "-"}</td>
+                          <td className="p-2">{o.from_phone || "-"}</td>
+                          <td className="p-2">{o.notes || "-"}</td>
+                          <td className="p-2">{o.created_at ? new Date(o.created_at).toLocaleString() : "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const resp = await fetch(`/api/dispo/evaluate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: lead.id }) })
+                      const j = await resp.json()
+                      if (!resp.ok) return alert(j.error || "Failed")
+                      if (j.recommendation === "renegotiate") {
+                        alert(`Recommend renegotiate. Suggested offer: $${(j.suggestedOffer || 0).toLocaleString()}`)
+                      } else if (j.recommendation === "cancel") {
+                        alert("Recommend cancel during inspection period")
+                      } else {
+                        alert("Recommend continue marketing")
+                      }
+                    } catch {
+                      alert("Evaluation failed")
+                    }
+                  }}
+                >
+                  Evaluate Dispo
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const proposedStr = prompt("Enter proposed new offer (USD)") || ""
+                      const proposed = Number.parseInt(proposedStr)
+                      const resp = await fetch(`/api/dispo/renegotiate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: lead.id, proposed }) })
+                      const j = await resp.json()
+                      alert(resp.ok ? `Proposed $${j.newOffer?.toLocaleString()}` : j.error || "Failed")
+                    } catch {
+                      alert("Renegotiation failed")
+                    }
+                  }}
+                >
+                  Renegotiate Offer
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    try {
+                      if (!confirm("Cancel during inspection period?")) return
+                      const resp = await fetch(`/api/dispo/cancel`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: lead.id }) })
+                      const j = await resp.json()
+                      alert(resp.ok ? "Cancelled" : j.error || "Failed")
+                    } catch {
+                      alert("Cancel failed")
+                    }
+                  }}
+                >
+                  Cancel Contract
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    const phone = prompt("Buyer phone (optional)") || ""
+                    const feeStr = prompt("Assignment fee (USD)") || ""
+                    const fee = Number.parseInt(feeStr)
+                    const notes = prompt("Notes (optional)") || ""
+                    if (!fee || fee <= 0) return alert("Enter a valid fee")
+                    const resp = await fetch(`/api/dispo/interest`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ leadId: lead.id, phone, amount: fee, notes }),
+                    })
+                    const j = await resp.json()
+                    alert(resp.ok ? "Recorded" : j.error || "Failed")
+                  }}
+                >
+                  Record Buyer Offer
+                </Button>
+                {buyerOffers.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      if (!selectedOfferId) return alert("Select an offer")
+                      const offer = buyerOffers.find((o) => o.id === selectedOfferId)
+                      if (!offer) return alert("Offer not found")
+                      const fee = offer.amount || Number.parseInt(prompt("Assignment fee (USD)") || "0")
+                      if (!fee || fee <= 0) return alert("Enter a valid fee")
+                      const resp = await fetch(`/api/dispo/assign`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ leadId: lead.id, buyerId: offer.buyer_id || null, assignmentFee: fee }),
+                      })
+                      const j = await resp.json()
+                      alert(resp.ok ? "Assignment PDF generated and links sent" : j.error || "Failed")
+                    }}
+                  >
+                    Generate Assignment PDF
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

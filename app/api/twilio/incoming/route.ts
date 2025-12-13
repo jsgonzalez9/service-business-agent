@@ -6,6 +6,8 @@ import { triggerVoiceCall } from "@/lib/voice-call-actions"
 import { notifyHotLead } from "@/lib/notify"
 import { deriveTagsFromMessage } from "@/lib/tagging"
 import { createClient } from "@/lib/supabase/server"
+import { classifyIntent, normalizeQuestion, lookupCached, storeCached } from "@/lib/cache-router"
+import { findCachedByEmbedding } from "@/lib/llm-cache"
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,6 +24,41 @@ export async function POST(request: NextRequest) {
         headers: { "Content-Type": "text/xml" },
       })
     }
+
+    // Buyer replies: map From to recent buyer broadcast to capture interest/offers
+    try {
+      const supabase = await createClient()
+      const since = new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString()
+      const { data: bb } = await supabase
+        .from("buyer_broadcasts")
+        .select("*")
+        .eq("to_phone", from)
+        .gte("sent_at", since)
+        .order("sent_at", { ascending: false })
+        .limit(1)
+      const candidate = (bb || [])[0]
+      if (candidate && candidate.lead_id) {
+        const amtMatch = body.match(/\$?\s*([0-9]{2,3}(?:[,][0-9]{3})*(?:\.[0-9]{2})?)/)
+        const isInterested = /\b(yes|interested|i'm in|count me in)\b/i.test(body)
+        const offerAmount = amtMatch ? Number(String(amtMatch[1]).replace(/,/g, "")) : null
+        const { data: leadRow } = await supabase.from("leads").select("offers_received,best_assignment_fee").eq("id", candidate.lead_id).single()
+        const updates: any = { offers_received: ((leadRow?.offers_received as number) || 0) + 1 }
+        if (offerAmount && (!leadRow?.best_assignment_fee || offerAmount > Number(leadRow.best_assignment_fee))) {
+          updates.best_assignment_fee = offerAmount
+        }
+        await supabase.from("leads").update(updates).eq("id", candidate.lead_id)
+        await supabase.from("buyer_offers").insert({
+          lead_id: candidate.lead_id,
+          buyer_id: candidate.buyer_id || null,
+          from_phone: from,
+          amount: offerAmount,
+          notes: isInterested ? "interested" : null,
+        })
+        return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+          headers: { "Content-Type": "text/xml" },
+        })
+      }
+    } catch {}
 
     // Find the lead by phone number
     const lead = await getLeadByPhone(from)
@@ -160,9 +197,34 @@ export async function POST(request: NextRequest) {
 
     // Get agent config
     const config = await getAgentConfig()
-
-    // Generate AI response
-    const response = await generateAgentResponse(lead, body, config)
+    // Cache Router: prefer FAQ cached responses when possible (if enabled)
+    const intent = classifyIntent(body)
+    let responseMessage: string | null = null
+    if (config.llm_cache_enabled !== false && intent.startsWith("FAQ")) {
+      const norm = normalizeQuestion(body)
+      const { text, confidence } = await lookupCached(intent as any, norm)
+      if (text && confidence >= 0.85) {
+        responseMessage = text
+      } else {
+        let floor = typeof config.llm_cache_confidence_floor === "number" ? config.llm_cache_confidence_floor : 0.85
+        let ttlDays = intent.startsWith("FAQ")
+          ? (config.llm_cache_ttl_faq_days as number) ?? 30
+          : (config.llm_cache_ttl_objection_days as number) ?? 14
+        const market = lead.state || undefined
+        const overrides = (config.llm_cache_market_overrides || {}) as any
+        if (market && overrides[market]) {
+          floor = overrides[market].confidence_floor ?? floor
+          ttlDays = intent.startsWith("FAQ")
+            ? overrides[market].ttl_faq_days ?? ttlDays
+            : overrides[market].ttl_objection_days ?? ttlDays
+        }
+        const emb = await findCachedByEmbedding(intent, body, market, floor, ttlDays)
+        if (emb.text && emb.confidence >= 0.85) responseMessage = emb.text
+      }
+    }
+    const response = responseMessage
+      ? { message: responseMessage, modelUsed: null, escalated: false, updatedLead: {}, newState: null, callIntent: null }
+      : await generateAgentResponse(lead, body, config)
 
     console.log(`[AI Response] Model: ${response.modelUsed}, Escalated: ${response.escalated}`)
 
@@ -211,6 +273,12 @@ export async function POST(request: NextRequest) {
       await notifyHotLead({ id: lead.id, name: lead.name, phone_number: lead.phone_number, address: lead.address })
     }
 
+    // Persist new FAQ cache entries when applicable
+    if (!responseMessage && intent.startsWith("FAQ")) {
+      const normalized = normalizeQuestion(body)
+      await storeCached(intent as any, normalized, response.message)
+    }
+
     // Send the response via Twilio
     const { sid: outgoingSid, error } = await sendSMS(from, response.message)
 
@@ -224,9 +292,15 @@ export async function POST(request: NextRequest) {
       direction: "outbound",
       content: response.message,
       twilio_sid: outgoingSid || undefined,
-      model_used: savedModel || null,
+      model_used: responseMessage ? null : savedModel || null,
       was_escalated: response.escalated,
     })
+    try {
+      const supabase = await createClient()
+      await supabase
+        .from("message_metrics")
+        .insert({ lead_id: lead.id, model: response.modelUsed || null, tokens: null, cost: null, confidence: responseMessage ? 1.0 : 0.75 })
+    } catch {}
 
     // Return empty TwiML since we're sending via API
     return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {

@@ -35,6 +35,10 @@ export interface Lead {
   pipeline_status?: "NEW" | "WARM" | "HOT" | "DEAD" | "FOLLOW-UP"
   tags?: string[] | null
   score?: number
+  score_updated_at?: string | null
+  deal_state?: "NEW" | "CONTACTED" | "QUALIFIED" | "OFFER_SENT" | "NEGOTIATING" | "AGREED" | "CONTRACTED" | "DISPO" | "CLOSED" | "DEAD"
+  offer_attempts?: number
+  last_offer_amount?: number | null
   is_opted_out?: boolean
   opted_out_at?: string | null
   optout_reason?: string | null
@@ -62,6 +66,15 @@ export interface AgentConfig {
   max_follow_ups: number
   followup_backoff_minutes?: number
   followup_max_attempts?: number
+  llm_cache_enabled?: boolean
+  llm_cache_confidence_floor?: number
+  llm_cache_ttl_faq_days?: number
+  llm_cache_ttl_objection_days?: number
+  llm_cache_market_overrides?: Record<string, { confidence_floor?: number; ttl_faq_days?: number; ttl_objection_days?: number }>
+  auto_dispo_eval_enabled?: boolean
+  auto_renegotiate_days_threshold?: number
+  auto_cancel_days_threshold?: number
+  auto_dispo_require_human_confirm?: boolean
   created_at: string
   updated_at: string
 }

@@ -223,6 +223,14 @@ export async function getAgentConfig(): Promise<AgentConfig> {
       max_follow_ups: 3,
       followup_backoff_minutes: 15,
       followup_max_attempts: 3,
+      llm_cache_enabled: true,
+      llm_cache_confidence_floor: 0.85,
+      llm_cache_ttl_faq_days: 30,
+      llm_cache_ttl_objection_days: 14,
+      auto_dispo_eval_enabled: true,
+      auto_renegotiate_days_threshold: 5,
+      auto_cancel_days_threshold: 10,
+      auto_dispo_require_human_confirm: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }
@@ -258,6 +266,51 @@ export async function generateAgentResponse(
   incomingMessage: string,
   config: AgentConfig,
 ): Promise<AgentResponse> {
+  // Cache Router short-circuit for FAQ intents in app reply flow
+  try {
+    const { classifyIntent, normalizeQuestion, lookupCached } = await import("@/lib/cache-router")
+    const { findCachedByEmbedding } = await import("@/lib/llm-cache")
+    const intent = classifyIntent(incomingMessage)
+    if (config.llm_cache_enabled !== false && (intent as string).startsWith("FAQ")) {
+      const norm = normalizeQuestion(incomingMessage)
+      const { text, confidence } = await lookupCached(intent as any, norm)
+      if (text && confidence >= 0.85) {
+        return {
+          message: text,
+          updatedLead: {},
+          newState: undefined,
+          modelUsed: "gpt-5.1", // null not allowed in AgentResponse type here; tracked separately in messages
+          escalated: false,
+          callIntent: { action: "none" },
+        }
+      } else {
+        let floor = typeof config.llm_cache_confidence_floor === "number" ? config.llm_cache_confidence_floor : 0.85
+        let ttlDays =
+          (intent as string).startsWith("FAQ")
+            ? (config.llm_cache_ttl_faq_days as number) ?? 30
+            : (config.llm_cache_ttl_objection_days as number) ?? 14
+        const market = lead.state || undefined
+        const overrides = (config.llm_cache_market_overrides || {}) as any
+        if (market && overrides[market]) {
+          floor = overrides[market].confidence_floor ?? floor
+          ttlDays = (intent as string).startsWith("FAQ")
+            ? overrides[market].ttl_faq_days ?? ttlDays
+            : overrides[market].ttl_objection_days ?? ttlDays
+        }
+        const emb = await findCachedByEmbedding(intent as any, incomingMessage, market, floor, ttlDays)
+        if (emb.text && emb.confidence >= 0.85) {
+          return {
+            message: emb.text,
+            updatedLead: {},
+            newState: undefined,
+            modelUsed: "gpt-5.1",
+            escalated: false,
+            callIntent: { action: "none" },
+          }
+        }
+      }
+    }
+  } catch {}
   const conversationHistory = await getConversationHistory(lead.id)
 
   const shouldEscalate = shouldEscalateToNodeB(incomingMessage, lead.conversation_state)
@@ -393,7 +446,15 @@ Respond in JSON format:
   }
   if (parsed.counterOfferAmount) {
     updatedLead.notes = `${lead.notes || ""}\nSeller counter offer: $${parsed.counterOfferAmount}`.trim()
+    updatedLead.offer_amount = Number(parsed.counterOfferAmount)
   }
+
+  try {
+    const { scoreLead } = await import("@/lib/scoring")
+    const s = scoreLead(lead, conversationHistory)
+    updatedLead.score = s
+    updatedLead.score_updated_at = new Date().toISOString() as any
+  } catch {}
 
   let newState: Lead["conversation_state"] | undefined
   if (parsed.offerAccepted || parsed.readyForContract) {
@@ -413,6 +474,13 @@ Respond in JSON format:
   if ((parsed.shouldMakeOffer || parsed.readyForContract) && lead.arv && lead.repair_estimate) {
     updatedLead.offer_amount = calculateMAO(lead.arv, lead.repair_estimate, config.wholesaling_fee, config.arv_multiplier)
   }
+
+  try {
+    const { enforceRails, mao } = await import("@/lib/negotiation-rails")
+    const base = mao(lead.arv || 0, lead.repair_estimate || 0, config.wholesaling_fee, config.arv_multiplier)
+    const r = enforceRails(lead, base, updatedLead.offer_amount || undefined)
+    if (!r.allowed && r.nextAmount) updatedLead.offer_amount = r.nextAmount
+  } catch {}
 
   return {
     message: parsed.smsResponse,

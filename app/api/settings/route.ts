@@ -21,7 +21,16 @@ export async function POST(request: NextRequest) {
           max_follow_ups: body.max_follow_ups,
           followup_backoff_minutes: body.followup_backoff_minutes ?? 15,
           followup_max_attempts: body.followup_max_attempts ?? 3,
+          llm_cache_enabled: typeof body.llm_cache_enabled === "boolean" ? body.llm_cache_enabled : true,
+          llm_cache_confidence_floor: typeof body.llm_cache_confidence_floor === "number" ? body.llm_cache_confidence_floor : 0.85,
+          llm_cache_ttl_faq_days: typeof body.llm_cache_ttl_faq_days === "number" ? body.llm_cache_ttl_faq_days : 30,
+          llm_cache_ttl_objection_days: typeof body.llm_cache_ttl_objection_days === "number" ? body.llm_cache_ttl_objection_days : 14,
+          auto_dispo_eval_enabled: typeof body.auto_dispo_eval_enabled === "boolean" ? body.auto_dispo_eval_enabled : true,
+          auto_renegotiate_days_threshold: typeof body.auto_renegotiate_days_threshold === "number" ? body.auto_renegotiate_days_threshold : 5,
+          auto_cancel_days_threshold: typeof body.auto_cancel_days_threshold === "number" ? body.auto_cancel_days_threshold : 10,
+          auto_dispo_require_human_confirm: typeof body.auto_dispo_require_human_confirm === "boolean" ? body.auto_dispo_require_human_confirm : true,
           updated_at: new Date().toISOString(),
+          llm_cache_market_overrides: body.llm_cache_market_overrides ?? {},
         })
         .eq("id", existing.id)
 
@@ -38,6 +47,15 @@ export async function POST(request: NextRequest) {
         max_follow_ups: body.max_follow_ups,
         followup_backoff_minutes: body.followup_backoff_minutes ?? 15,
         followup_max_attempts: body.followup_max_attempts ?? 3,
+        llm_cache_enabled: typeof body.llm_cache_enabled === "boolean" ? body.llm_cache_enabled : true,
+        llm_cache_confidence_floor: typeof body.llm_cache_confidence_floor === "number" ? body.llm_cache_confidence_floor : 0.85,
+        llm_cache_ttl_faq_days: typeof body.llm_cache_ttl_faq_days === "number" ? body.llm_cache_ttl_faq_days : 30,
+        llm_cache_ttl_objection_days: typeof body.llm_cache_ttl_objection_days === "number" ? body.llm_cache_ttl_objection_days : 14,
+        auto_dispo_eval_enabled: typeof body.auto_dispo_eval_enabled === "boolean" ? body.auto_dispo_eval_enabled : true,
+        auto_renegotiate_days_threshold: typeof body.auto_renegotiate_days_threshold === "number" ? body.auto_renegotiate_days_threshold : 5,
+        auto_cancel_days_threshold: typeof body.auto_cancel_days_threshold === "number" ? body.auto_cancel_days_threshold : 10,
+        auto_dispo_require_human_confirm: typeof body.auto_dispo_require_human_confirm === "boolean" ? body.auto_dispo_require_human_confirm : true,
+        llm_cache_market_overrides: body.llm_cache_market_overrides ?? {},
       })
 
       if (error) {
