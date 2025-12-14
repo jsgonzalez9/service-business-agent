@@ -3,11 +3,24 @@ import { createClient } from "@/lib/supabase/server"
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
-  const form = await req.formData()
-  const rawTemplateId = String(form.get("templateId") || "")
-  const url = String(form.get("url") || "")
-  const role = String(form.get("role") || "")
-  const state = String(form.get("state") || "")
+  const ct = req.headers.get("content-type") || ""
+  let rawTemplateId = ""
+  let url = ""
+  let role = ""
+  let state = ""
+  if (ct.includes("application/json")) {
+    const body = await req.json()
+    rawTemplateId = String(body.templateId || "")
+    url = String(body.url || "")
+    role = String(body.role || "")
+    state = String(body.state || "")
+  } else {
+    const form = await req.formData()
+    rawTemplateId = String(form.get("templateId") || "")
+    url = String(form.get("url") || "")
+    role = String(form.get("role") || "")
+    state = String(form.get("state") || "")
+  }
   if ((!rawTemplateId && !url) || !role) return NextResponse.json({ error: "templateId or url and role required" }, { status: 400 })
   const templateId = rawTemplateId.startsWith("http") ? "" : rawTemplateId
   const directLink = url || (rawTemplateId.startsWith("http") ? rawTemplateId : "")

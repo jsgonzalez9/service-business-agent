@@ -29,7 +29,7 @@ export default async function ContractsPage() {
           <Button type="submit">Upload Template</Button>
         </form>
         <div className="mt-4">
-          <form action="/api/contracts/docuseal/link" method="post" className="flex flex-wrap items-center gap-2">
+          <form action="/api/contracts/docuseal/link" method="post" encType="multipart/form-data" className="flex flex-wrap items-center gap-2">
             <select name="role" defaultValue="seller" className="rounded border border-border bg-background p-2 text-sm">
               <option value="seller">Seller</option>
               <option value="buyer">Buyer</option>
@@ -71,7 +71,7 @@ export default async function ContractsPage() {
             <p className="text-sm text-muted-foreground">State: {t.state || "-"}</p>
             <p className="text-xs text-muted-foreground">Path: {t.storage_path}</p>
             <div className="mt-2 flex items-center gap-2">
-              <form action="/api/contracts/docuseal/link" method="post" className="flex items-center gap-2">
+              <form action="/api/contracts/docuseal/link" method="post" encType="multipart/form-data" className="flex items-center gap-2">
                 <input type="hidden" name="role" value={t.role} />
                 <input type="hidden" name="state" value={t.state || ""} />
                 <Input name="templateId" placeholder="DocuSeal template id or URL" defaultValue={t.docuseal_template_id || t.docuseal_direct_link || ""} />
