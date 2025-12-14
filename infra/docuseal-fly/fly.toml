@@ -1,0 +1,32 @@
+app = "docuseal-wholesale-ai"
+primary_region = "ord"
+kill_signal = "SIGINT"
+kill_timeout = 5
+
+[build]
+  image = "docuseal/docuseal:latest"
+
+[mounts]
+  source = "docuseal_data"
+  destination = "/data"
+
+[env]
+  PORT = "3000"
+
+[[services]]
+  internal_port = 3000
+  protocol = "tcp"
+
+  [services.concurrency]
+    type = "requests"
+    hard_limit = 50
+    soft_limit = 40
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+

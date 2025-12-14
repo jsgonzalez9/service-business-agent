@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Lead not found" }, { status: 404 })
     }
 
-    // Generate contract link: prefer Supabase Storage signed URL from latest template
+    // Generate contract link: prefer DocuSeal if configured; else Supabase Storage signed URL from latest template
     let finalContractLink = contractLink || ""
     try {
       if (!finalContractLink) {
@@ -47,7 +47,63 @@ export async function POST(request: NextRequest) {
         if (state) q = q.eq("state", state)
         const { data: templates } = await q.order("created_at", { ascending: false }).limit(1)
         const tpl = templates?.[0]
-        if (tpl && tpl.storage_path) {
+        // DocuSeal direct link path
+        if (tpl?.docuseal_direct_link) {
+          finalContractLink = tpl.docuseal_direct_link
+          const update: Record<string, any> = { conversation_state: "contract_sent" }
+          if ((role || "seller") === "seller") {
+            update.seller_contract_status = "sent"
+            update.seller_contract_envelope_id = null
+            update.seller_contract_signed_url = tpl.docuseal_direct_link
+            update.contract_link = tpl.docuseal_direct_link
+          } else {
+            update.buyer_contract_status = "sent"
+            update.buyer_contract_envelope_id = null
+            update.buyer_contract_signed_url = tpl.docuseal_direct_link
+          }
+          await svc.from("leads").update(update).eq("id", lead.id)
+        }
+        // DocuSeal API packet path
+        else if (tpl?.docuseal_template_id && process.env.DOCUSEAL_BASE_URL && process.env.DOCUSEAL_API_TOKEN) {
+          const baseUrl = process.env.DOCUSEAL_BASE_URL!
+          const apiToken = process.env.DOCUSEAL_API_TOKEN!
+          let submitters: Array<{ name: string; email?: string; phone?: string }> = [
+            { name: lead.name, email: (lead as any).email, phone: lead.phone_number },
+          ]
+          if ((role || "seller") === "buyer" && lead.winning_buyer_id) {
+            const { data: buyer } = await svc.from("buyers").select("*").eq("id", lead.winning_buyer_id).single()
+            if (buyer) submitters = [{ name: buyer.name, email: buyer.email, phone: buyer.phone }]
+          }
+          const { createSigningPacket } = await import("@/lib/docuseal")
+          const resp = await createSigningPacket({
+            baseUrl,
+            apiToken,
+            templateId: tpl.docuseal_template_id,
+            submitters,
+            fields: {
+              address: lead.address,
+              offer_amount: lead.offer_amount || "",
+              seller_name: lead.name,
+            },
+          })
+          if (!resp.error && resp.signingUrls && resp.signingUrls[0]) {
+            finalContractLink = resp.signingUrls[0]
+            const update: Record<string, any> = { conversation_state: "contract_sent" }
+            if ((role || "seller") === "seller") {
+              update.seller_contract_status = "sent"
+              update.seller_contract_envelope_id = resp.packetId || null
+              update.seller_contract_signed_url = finalContractLink
+              update.contract_link = finalContractLink
+            } else {
+              update.buyer_contract_status = "sent"
+              update.buyer_contract_envelope_id = resp.packetId || null
+              update.buyer_contract_signed_url = finalContractLink
+            }
+            await svc.from("leads").update(update).eq("id", lead.id)
+          }
+        }
+        // Fallback: static file instance duplication and signed URL
+        else if (tpl && tpl.storage_path) {
           const fileRes = await svc.storage.from("contracts").download(tpl.storage_path)
           if (fileRes.data) {
             const filename = tpl.storage_path.split("/").pop() || "contract.pdf"
