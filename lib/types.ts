@@ -12,9 +12,11 @@ export type ConversationState =
   | "schedule_call"
   | "ready_for_offer_call"
   | "text_only"
+  | "booked"
 
 export interface Lead {
   id: string
+  business_id?: string | null
   name: string
   phone_number: string
   address: string
@@ -69,7 +71,7 @@ export interface Message {
   direction: "inbound" | "outbound"
   content: string
   twilio_sid: string | null
-  model_used: "gpt-5-mini" | "gpt-4.0-mini" | "gpt-5" | "gpt-5.1" | null
+  model_used: "gpt-5-mini" | "gpt-4.0-mini" | "gpt-5" | "gpt-5.1" | "gpt-4o" | null
   was_escalated: boolean | null
   created_at: string
 }

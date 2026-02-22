@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { saveMessage, updateLead } from "@/lib/lead-actions"
 import { sendSMS } from "@/lib/twilio"
-import { getAgentConfig } from "@/lib/wholesaling-agent"
+import { getAgentConfig } from "@/lib/service-agent"
 import { createServiceClient } from "@/lib/supabase/service"
 
 function extractStateFromAddress(address: string): string | null {

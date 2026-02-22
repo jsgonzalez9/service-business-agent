@@ -1,3 +1,0 @@
-{
-  "/api/twilio/voice/incoming/route": "app/api/twilio/voice/incoming/route.js"
-}

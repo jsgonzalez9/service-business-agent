@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { mao, enforceRails } from "@/lib/negotiation-rails"
 import { sendSMS } from "@/lib/twilio"
-import { getAgentConfig } from "@/lib/wholesaling-agent"
+import { getAgentConfig } from "@/lib/service-agent"
 
 export const dynamic = "force-dynamic"
 

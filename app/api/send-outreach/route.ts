@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { updateLead, saveMessage } from "@/lib/lead-actions"
-import { generateInitialOutreach, getAgentConfig } from "@/lib/wholesaling-agent"
+import { generateInitialOutreach, getAgentConfig } from "@/lib/service-agent"
 import { sendSMS } from "@/lib/twilio"
 import { createClient } from "@/lib/supabase/server"
 

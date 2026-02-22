@@ -1,3 +1,0 @@
-{
-  "/api/twilio/voice/handle-input/route": "app/api/twilio/voice/handle-input/route.js"
-}

@@ -1,3 +1,0 @@
-{
-  "/api/twilio/sequences/voicemail/route": "app/api/twilio/sequences/voicemail/route.js"
-}

@@ -21,7 +21,7 @@ export default async function OptionsPage() {
   }
 
   const nextDomain = appUrl || "https://your-vercel-domain"
-  const dsPublic = docusealBase || "https://v0-ai-wholesaling-agent.onrender.com"
+  const dsPublic = docusealBase || "https://v0-ai-service-agent.onrender.com"
 
   return (
     <div className="min-h-screen bg-background">

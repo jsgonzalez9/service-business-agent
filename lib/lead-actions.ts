@@ -12,6 +12,11 @@ export async function createLead(data: {
   notes?: string
   arv?: number
   repair_estimate?: number
+  motivation?: string
+  timeline?: string
+  property_condition?: string
+  conversation_state?: string
+  business_id?: string
 }): Promise<{ lead: Lead | null; error: string | null }> {
   const supabase = await createClient()
 
@@ -50,7 +55,11 @@ export async function createLead(data: {
       notes: data.notes || null,
       arv: data.arv || null,
       repair_estimate: data.repair_estimate || null,
-      conversation_state: "cold_lead",
+      motivation: data.motivation || null,
+      timeline: data.timeline || null,
+      property_condition: data.property_condition || null,
+      conversation_state: (data.conversation_state as any) || "cold_lead",
+      business_id: data.business_id || null,
     })
     .select()
     .single()

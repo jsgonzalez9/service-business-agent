@@ -20,15 +20,15 @@ export async function POST() {
           // Mark as sent
           await markFollowUpAsSent(followUp.id)
           sentCount++
-          console.log(`[v0] Sent follow-up ${followUp.sequence_number} to ${followUp.lead_name}`)
+          console.log(`[ServiceAgent] Sent follow-up ${followUp.sequence_number} to ${followUp.lead_name}`)
         } else {
           failedCount++
-          console.log(`[v0] Failed to send SMS: ${result.error}`)
+          console.log(`[ServiceAgent] Failed to send SMS: ${result.error}`)
           await markFollowUpFailed(followUp.id, String(result.error || "unknown error"))
         }
       } catch (error) {
         failedCount++
-        console.error(`[v0] Error sending follow-up to ${followUp.lead_name}:`, error)
+        console.error(`[ServiceAgent] Error sending follow-up to ${followUp.lead_name}:`, error)
         await markFollowUpFailed(followUp.id, String(error))
       }
 

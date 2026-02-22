@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { getLeadByPhone, saveMessage, updateLead } from "@/lib/lead-actions"
-import { generateAgentResponse, getAgentConfig } from "@/lib/wholesaling-agent"
+import { generateAgentResponse, getAgentConfig } from "@/lib/service-agent"
 import { sendSMS } from "@/lib/twilio"
 import { triggerVoiceCall } from "@/lib/voice-call-actions"
 import { notifyHotLead } from "@/lib/notify"
@@ -8,6 +8,7 @@ import { deriveTagsFromMessage } from "@/lib/tagging"
 import { createClient } from "@/lib/supabase/server"
 import { classifyIntent, normalizeQuestion, lookupCached, storeCached } from "@/lib/cache-router"
 import { findCachedByEmbedding } from "@/lib/llm-cache"
+import { createBooking } from "@/lib/booking"
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,41 +25,6 @@ export async function POST(request: NextRequest) {
         headers: { "Content-Type": "text/xml" },
       })
     }
-
-    // Buyer replies: map From to recent buyer broadcast to capture interest/offers
-    try {
-      const supabase = await createClient()
-      const since = new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString()
-      const { data: bb } = await supabase
-        .from("buyer_broadcasts")
-        .select("*")
-        .eq("to_phone", from)
-        .gte("sent_at", since)
-        .order("sent_at", { ascending: false })
-        .limit(1)
-      const candidate = (bb || [])[0]
-      if (candidate && candidate.lead_id) {
-        const amtMatch = body.match(/\$?\s*([0-9]{2,3}(?:[,][0-9]{3})*(?:\.[0-9]{2})?)/)
-        const isInterested = /\b(yes|interested|i'm in|count me in)\b/i.test(body)
-        const offerAmount = amtMatch ? Number(String(amtMatch[1]).replace(/,/g, "")) : null
-        const { data: leadRow } = await supabase.from("leads").select("offers_received,best_assignment_fee").eq("id", candidate.lead_id).single()
-        const updates: any = { offers_received: ((leadRow?.offers_received as number) || 0) + 1 }
-        if (offerAmount && (!leadRow?.best_assignment_fee || offerAmount > Number(leadRow.best_assignment_fee))) {
-          updates.best_assignment_fee = offerAmount
-        }
-        await supabase.from("leads").update(updates).eq("id", candidate.lead_id)
-        await supabase.from("buyer_offers").insert({
-          lead_id: candidate.lead_id,
-          buyer_id: candidate.buyer_id || null,
-          from_phone: from,
-          amount: offerAmount,
-          notes: isInterested ? "interested" : null,
-        })
-        return new NextResponse('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-          headers: { "Content-Type": "text/xml" },
-        })
-      }
-    } catch {}
 
     // Find the lead by phone number
     const lead = await getLeadByPhone(from)
@@ -252,8 +218,17 @@ export async function POST(request: NextRequest) {
         conversation_state: response.callIntent.lead_status,
       })
 
-      // If not text_only, trigger voice call
-      if (response.callIntent.lead_status !== "text_only") {
+      // Handle Booking Confirmation
+      if (response.callIntent.lead_status === "booked") {
+         await createBooking(
+           lead.id, 
+           response.callIntent.call_time || "Unknown Time", 
+           "AI Booking via SMS"
+         )
+         console.log(`[Booking Confirmed] Lead: ${lead.id}, Time: ${response.callIntent.call_time}`)
+      }
+      // If not text_only and not booked, trigger voice call (e.g. warm transfer)
+      else if (response.callIntent.lead_status !== "text_only") {
         try {
           await triggerVoiceCall(lead.id, response.callIntent.lead_status, response.callIntent.call_time)
           console.log(`[Voice Call Triggered] for lead: ${lead.id}`)
@@ -263,7 +238,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const hotStates = new Set(["offer_made", "offer_accepted", "contract_sent", "ready_for_offer_call", "warm_call_requested", "schedule_call"])
+    const hotStates = new Set(["offer_made", "offer_accepted", "contract_sent", "ready_for_offer_call", "warm_call_requested", "schedule_call", "booked"])
     const becameHot =
       response.escalated ||
       (response.newState && hotStates.has(response.newState)) ||
@@ -286,13 +261,12 @@ export async function POST(request: NextRequest) {
       console.error("Failed to send SMS:", error)
     }
 
-    const savedModel = (response.modelUsed === "gpt-5.1" ? "gpt-5" : response.modelUsed) as "gpt-5-mini" | "gpt-5" | null
     await saveMessage({
       lead_id: lead.id,
       direction: "outbound",
       content: response.message,
       twilio_sid: outgoingSid || undefined,
-      model_used: responseMessage ? null : savedModel || null,
+      model_used: responseMessage ? null : response.modelUsed,
       was_escalated: response.escalated,
     })
     try {

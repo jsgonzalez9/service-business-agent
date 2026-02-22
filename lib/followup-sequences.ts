@@ -1,57 +1,25 @@
 "use server"
 
 import { createClient } from "@/lib/supabase/server"
-import { getAgentConfig } from "@/lib/wholesaling-agent"
+import { getAgentConfig } from "@/lib/service-agent"
 
-// 12-message SMS follow-up sequence for wholesaling
+// Service Business Follow-up Sequence
 const FOLLOWUP_MESSAGES = [
   {
-    day: 0,
-    message: "Hey! Quick question — are you open to an offer on your property at [ADDRESS]?",
-  },
-  {
     day: 1,
-    message: "Just making sure this reached the right person. If not, sorry about that!",
+    message: "Hi [NAME], just checking back — did you still need help with [SERVICE_TYPE]? We have openings this week.",
   },
   {
-    day: 2,
-    message: "No rush — just curious if you'd consider selling if the price made sense?",
+    day: 3,
+    message: "Hey [NAME], we offer free estimates and a 100% satisfaction guarantee. Let me know if you want to get this sorted!",
   },
   {
-    day: 4,
-    message: "I can usually give a rough estimate in under 60 seconds if you want one.",
+    day: 5,
+    message: "Check out what our neighbors are saying: 'Best service in town!' ⭐⭐⭐⭐⭐. We'd love to help you too.",
   },
   {
     day: 7,
-    message: "Have you gotten any offers recently? Just trying to see where things stand.",
-  },
-  {
-    day: 10,
-    message: "Still thinking about selling the place? Totally fine either way.",
-  },
-  {
-    day: 15,
-    message: "Hey, just checking back in — any chance you'd consider an offer this month?",
-  },
-  {
-    day: 21,
-    message: "We've got a few buyers looking in your area specifically — want me to see what they'd pay?",
-  },
-  {
-    day: 30,
-    message: "Just a heads up: we're short on properties right now. Could move fast if you're interested.",
-  },
-  {
-    day: 38,
-    message: "We're locking in offers for this month. Want me to run your place through?",
-  },
-  {
-    day: 45,
-    message: "Out of curiosity… if you did sell, what price would make you consider it?",
-  },
-  {
-    day: 52,
-    message: "Should I close your file or keep you on the list in case something opens up? Either is fine.",
+    message: "I don't want to bother you! I'll close this file for now, but feel free to text back if you need us later.",
   },
 ]
 
@@ -69,7 +37,7 @@ export async function scheduleFollowUpSequence(
       return { success: false, error: "Lead not found" }
     }
 
-    // Create follow-up sequence entries for all 12 messages
+    // Create follow-up sequence entries
     const sequenceEntries = FOLLOWUP_MESSAGES.map((msg, index) => {
       const scheduledDate = new Date()
       scheduledDate.setDate(scheduledDate.getDate() + msg.day)
@@ -128,7 +96,7 @@ export async function getPendingFollowUps(limit = 50): Promise<
       scheduled_for,
       attempts,
       next_attempt_at,
-      leads(name, phone_number, address)
+      leads(name, phone_number, address, motivation)
     `,
     )
     .eq("status", "pending")
@@ -144,17 +112,29 @@ export async function getPendingFollowUps(limit = 50): Promise<
   }
 
   // Map the response to include message content
-  return (data || []).map((item: any) => ({
-    id: item.id,
-    lead_id: item.lead_id,
-    lead_name: item.leads?.name || "Unknown",
-    phone_number: item.leads?.phone_number || "",
-    address: item.leads?.address || "",
-    sequence_number: item.sequence_number,
-    message: FOLLOWUP_MESSAGES[item.sequence_number - 1].message.replace("[ADDRESS]", item.leads?.address || ""),
-    scheduled_for: item.scheduled_for,
-    attempts: item.attempts || 0,
-  }))
+  return (data || []).map((item: any) => {
+      let msg = FOLLOWUP_MESSAGES[item.sequence_number - 1]?.message || "Just checking in!"
+      
+      const name = item.leads?.name || "there"
+      const serviceType = item.leads?.motivation || "your project" // Mapping motivation to Service Type
+      const address = item.leads?.address || ""
+      
+      msg = msg.replace("[NAME]", name)
+      msg = msg.replace("[SERVICE_TYPE]", serviceType)
+      msg = msg.replace("[ADDRESS]", address)
+      
+      return {
+        id: item.id,
+        lead_id: item.lead_id,
+        lead_name: item.leads?.name || "Unknown",
+        phone_number: item.leads?.phone_number || "",
+        address: item.leads?.address || "",
+        sequence_number: item.sequence_number,
+        message: msg,
+        scheduled_for: item.scheduled_for,
+        attempts: item.attempts || 0,
+      }
+  })
 }
 
 export async function markFollowUpAsSent(sequenceId: string): Promise<{ success: boolean; error?: string }> {
@@ -167,6 +147,25 @@ export async function markFollowUpAsSent(sequenceId: string): Promise<{ success:
 
   if (error) {
     return { success: false, error: error.message }
+  }
+
+  return { success: true }
+}
+
+export async function markFollowUpFailed(sequenceId: string, reason: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient()
+
+  // Proper increment logic:
+  const { data } = await supabase.from("follow_up_sequences").select("attempts").eq("id", sequenceId).single()
+  const attempts = (data?.attempts || 0) + 1
+  
+  const { error: updateError } = await supabase.from("follow_up_sequences").update({
+      attempts: attempts,
+      next_attempt_at: new Date(Date.now() + 15 * 60 * 1000).toISOString()
+  }).eq("id", sequenceId)
+
+  if (updateError) {
+    return { success: false, error: updateError.message }
   }
 
   return { success: true }
@@ -197,34 +196,6 @@ export async function getLeadFollowUpSequence(leadId: string) {
     console.error("Error fetching follow-up sequence:", error)
     return []
   }
-
-  return data || []
-}
-
-export async function markFollowUpFailed(sequenceId: string, errMsg: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient()
-  const agentCfg = await getAgentConfig()
-  const backoffMinutes = Number(agentCfg.followup_backoff_minutes ?? process.env.FOLLOWUP_BACKOFF_MINUTES ?? 15)
-  const next = new Date()
-  next.setMinutes(next.getMinutes() + backoffMinutes)
-  const { error } = await supabase
-    .from("follow_up_sequences")
-    .update({
-      attempts: (supabase as any).rpc ? undefined : undefined, // placeholder, we will increment via fetch-update
-      next_attempt_at: next.toISOString(),
-      error_last: errMsg,
-    })
-    .eq("id", sequenceId)
-  if (error) {
-    // Fallback: read and update attempts manually
-    const { data } = await supabase.from("follow_up_sequences").select("attempts").eq("id", sequenceId).single()
-    const attempts = ((data as any)?.attempts || 0) + 1
-    const { error: e2 } = await supabase
-      .from("follow_up_sequences")
-      .update({ attempts, next_attempt_at: next.toISOString(), error_last: errMsg })
-      .eq("id", sequenceId)
-    if (e2) return { success: false, error: e2.message }
-    return { success: true }
-  }
-  return { success: true }
+  
+  return data
 }
