@@ -1,5 +1,5 @@
-import { getAllLeads, checkDatabaseSetup } from "@/lib/lead-actions"
-import { DashboardClient } from "@/components/dashboard-client"
+import { checkDatabaseSetup } from "@/lib/lead-actions"
+import { ServiceDashboard } from "@/components/service-dashboard"
 import AuthBar from "@/components/auth-bar"
 import { redirect } from "next/navigation"
 
@@ -12,12 +12,14 @@ export default async function DashboardPage() {
     redirect("/setup")
   }
 
-  const leads = await getAllLeads()
-
   return (
-    <>
+    <div className="flex flex-col h-screen">
       <AuthBar />
-      <DashboardClient initialLeads={leads} />
-    </>
+      <main className="flex-1 p-8 bg-gray-50/50">
+        <h1 className="text-3xl font-bold mb-6">AI Agent Dashboard</h1>
+        <ServiceDashboard />
+        {/* The rest of the lead management UI will go here */}
+      </main>
+    </div>
   )
 }
