@@ -1,0 +1,7 @@
+[00:00:02.442] Server  LOG      ✓ Ready in 1685ms
+[00:00:43.782] Server  LOG      ○ Compiling /login ...
+[00:02:51.404] Server  LOG      ✓ Compiled in 86ms
+[00:06:09.440] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:06:20.150] Browser ERROR   unhandledRejection: i: Failed to connect to MetaMask
+[00:07:28.688] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:11:58.648] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold

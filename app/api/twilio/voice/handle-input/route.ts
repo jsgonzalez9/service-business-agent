@@ -1,10 +1,17 @@
+/**
+ * Task #1 & #2: Handle Voice Input with Qualification Sequence
+ * AI Disclosure + Structured Output Tracking
+ * Vapi "Elliot" Standard
+ */
+
 import { type NextRequest, NextResponse } from "next/server"
 import twilio from "twilio"
 import { getLeadById, updateLead } from "@/lib/lead-actions"
 import { updateCall, addCallEvent, getCallById } from "@/lib/voice-call-actions"
 import { getRuntimeSettings } from "@/lib/settings"
-import { generateVoiceResponse, extractCallInsights } from "@/lib/voice-agent"
 import { validateTwilioRequest } from "@/lib/twilio"
+import { generateVoiceResponse, processCallCompletion } from "@/lib/voice-agent-updated"
+import { detectEndedReason } from "@/lib/voice-qualification"
 
 const VoiceResponse = twilio.twiml.VoiceResponse
 
@@ -26,11 +33,14 @@ export async function POST(request: NextRequest) {
         headers: { "Content-Type": "text/xml" },
       })
     }
+
     const callId = request.nextUrl.searchParams.get("call_id") as string
     const leadId = request.nextUrl.searchParams.get("lead_id") as string
     const speechResult = formData.get("SpeechResult") as string
+    const callDuration = parseInt(formData.get("CallDuration") as string || "0")
+    const callStatus = formData.get("CallStatus") as string
 
-    console.log(`[Voice Input] CallId: ${callId}, Speech: ${speechResult}`)
+    console.log(`[Voice Input] CallId: ${callId}, Speech: "${speechResult}", Status: ${callStatus}`)
 
     const lead = await getLeadById(leadId)
     const callRecord = await getCallById(callId)
@@ -44,85 +54,130 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Enforce max call duration if configured
+    // Track transcript
+    const transcriptEntry = `User: ${speechResult}\n`
+    const currentTranscript = callRecord?.transcript ? callRecord.transcript + transcriptEntry : transcriptEntry
+
+    // Enforce max call duration
     const settings = await getRuntimeSettings()
-    const maxMinutes = Number(settings.maxCallMinutes || 0)
+    const maxMinutes = Number(settings.maxCallMinutes || 5)
+    let elapsedSec = 0
+    
     if (callRecord && maxMinutes > 0) {
       const started = new Date(callRecord.created_at)
       const now = new Date()
-      const elapsedSec = Math.floor((now.getTime() - started.getTime()) / 1000)
-      if (elapsedSec >= maxMinutes * 60) {
+      elapsedSec = Math.floor((now.getTime() - started.getTime()) / 1000)
+      
+      if (elapsedSec >= maxMinutes * 60 || callDuration >= maxMinutes * 60) {
+        // Max duration reached - process completion
+        await processCallCompletion(callId, currentTranscript, "max_duration", elapsedSec)
+        
         const twiml = new VoiceResponse()
-        twiml.say("Thanks for your time today. We'll follow up with next steps via text. Goodbye.")
-        await updateCall(callId, { call_status: "completed", duration_seconds: elapsedSec })
-        await addCallEvent(callId, "max_duration_exceeded", { elapsedSec, maxMinutes })
-        return new NextResponse(twiml.toString(), { headers: { "Content-Type": "text/xml" } })
+        twiml.say("Thanks for your time today. We'll follow up with next steps. Goodbye.")
+        twiml.hangup()
+        return new NextResponse(twiml.toString(), { 
+          headers: { "Content-Type": "text/xml" } 
+        })
       }
     }
 
-    // Generate AI response
-    const response = await generateVoiceResponse(lead, speechResult, {
+    // Handle call end events from Twilio
+    if (callStatus === "completed" || callStatus === "busy" || callStatus === "failed" || callStatus === "no-answer") {
+      const endedReason = detectEndedReason(callStatus, currentTranscript)
+      await processCallCompletion(callId, currentTranscript, endedReason, callDuration || elapsedSec)
+      
+      const twiml = new VoiceResponse()
+      twiml.hangup()
+      return new NextResponse(twiml.toString(), { 
+        headers: { "Content-Type": "text/xml" } 
+      })
+    }
+
+    // Generate AI response using new voice agent with AI disclosure
+    const config = {
       leadId,
       phone: lead.phone_number,
-      companyName: "Property Direct Cash",
-      agentName: "Alex",
-      mode: "inbound",
-    })
+      companyName: process.env.COMPANY_NAME || "AI Labs",
+      agentName: "Lux",
+      mode: "outbound" as const,
+    }
 
-    // Update call with transcript segment
-    const currentTranscript = `Lead: ${speechResult}\nAgent: ${response.message}`
+    const response = await generateVoiceResponse(lead, currentTranscript, config)
+
+    // Update call transcript
+    const updatedTranscript = currentTranscript + `Agent: ${response.message}\n`
     await updateCall(callId, {
-      transcript: currentTranscript,
+      transcript: updatedTranscript,
       call_status: response.shouldEndCall ? "completed" : "in_progress",
     })
 
-    // Add event
-    await addCallEvent(callId, "transcript_update", { speech: speechResult, response: response.message })
-    if (response.usage) {
-      await addCallEvent(callId, "usage", { tokens: response.usage })
-    }
+    // Log event
+    await addCallEvent(callId, "transcript_update", {
+      speech: speechResult,
+      response: response.message,
+      action: response.action,
+    })
 
-    // Build response TwiML
+    // Build TwiML response
     const twiml = new VoiceResponse()
 
     if (response.shouldEndCall) {
-      twiml.say(response.message)
-
-      try {
-        const insights = await extractCallInsights(currentTranscript, lead)
-        await updateCall(callId, {
-          summary: insights.summary,
-          sentiment: insights.sentiment,
-          offer_discussed: insights.offerDiscussed,
-          next_steps: insights.nextSteps,
-        })
-        if (Object.keys(insights.leadUpdates).length > 0) {
-          await updateLead(leadId, insights.leadUpdates)
-        }
-      } catch {}
-
+      // Call ending
+      // @ts-expect-error Twilio types mismatch
+      twiml.say(response.message, { voice: "Polly.Joanna" })
+      
+      // Process completion
+      const finalDuration = callDuration || elapsedSec || 0
+      const endedReason = response.action === "end" 
+        ? detectEndedReason("completed", updatedTranscript)
+        : "completed"
+      
+      await processCallCompletion(callId, updatedTranscript, endedReason, finalDuration)
+      
       twiml.hangup()
     } else {
+      // Continue conversation
       const gather = twiml.gather({
-        timeout: 3,
+        timeout: 5, // Longer timeout for natural conversation
         action: `/api/twilio/voice/handle-input?call_id=${callId}&lead_id=${leadId}`,
         method: "POST",
         speechTimeout: "auto",
         language: "en-US",
+        input: ["speech"],
       })
 
-      gather.say(response.message)
+      // @ts-expect-error Twilio types mismatch
+      gather.say(response.message, { voice: "Polly.Joanna" })
+
+      // Fallback if no speech detected
+      // @ts-expect-error Twilio types mismatch
+      twiml.say("I didn't catch that. Could you repeat?", { voice: "Polly.Joanna" })
+      twiml.redirect(`/api/twilio/voice/handle-input?call_id=${callId}&lead_id=${leadId}`)
     }
 
     return new NextResponse(twiml.toString(), {
       headers: { "Content-Type": "text/xml" },
     })
+
   } catch (error) {
     console.error("[Voice Handle Input] Error:", error)
 
     const twiml = new VoiceResponse()
-    twiml.say("An error occurred during the call.")
-    twiml.hangup()
+    // @ts-expect-error Twilio types mismatch
+    twiml.say("I'm having technical difficulties. Let me try again.", { voice: "Polly.Joanna" })
+    
+    // Try to get context for error recovery
+    const callId = request.nextUrl.searchParams.get("call_id")
+    const leadId = request.nextUrl.searchParams.get("lead_id")
+    
+    if (callId && leadId) {
+      twiml.gather({
+        timeout: 3,
+        action: `/api/twilio/voice/handle-input?call_id=${callId}&lead_id=${leadId}`,
+      })
+    } else {
+      twiml.hangup()
+    }
 
     return new NextResponse(twiml.toString(), {
       headers: { "Content-Type": "text/xml" },

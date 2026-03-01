@@ -28,6 +28,14 @@ export interface VoiceCall {
   offer_amount: number | null
   next_steps: string | null
   sentiment: string | null
+  // Voice Qualification Fields (Task #3)
+  interest_level: "high" | "medium" | "low" | "none" | null
+  motivation: string | null
+  urgency: "this_week" | "this_month" | "this_quarter" | "later" | "unknown" | null
+  past_experience: string | null
+  budget: "confirmed" | "discussed" | "not_discussed" | "no_budget" | null
+  paid_intent: boolean | null
+  ended_reason: "completed" | "voicemail" | "wrong_number" | "not_interested" | "callback_requested" | "max_duration" | "failed" | null
   created_at: string
   updated_at: string
 }

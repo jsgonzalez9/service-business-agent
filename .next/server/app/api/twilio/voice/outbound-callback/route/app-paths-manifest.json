@@ -1,0 +1,3 @@
+{
+  "/api/twilio/voice/outbound-callback/route": "app/api/twilio/voice/outbound-callback/route.js"
+}

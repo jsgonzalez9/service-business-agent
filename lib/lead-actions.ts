@@ -17,6 +17,7 @@ export async function createLead(data: {
   property_condition?: string
   conversation_state?: string
   business_id?: string
+  company_name?: string | null
 }): Promise<{ lead: Lead | null; error: string | null }> {
   const supabase = await createClient()
 
@@ -60,6 +61,7 @@ export async function createLead(data: {
       property_condition: data.property_condition || null,
       conversation_state: (data.conversation_state as any) || "cold_lead",
       business_id: data.business_id || null,
+      company_name: data.company_name || null,
     })
     .select()
     .single()

@@ -1,0 +1,17 @@
+{
+  "headers": {
+    "x-nextjs-stale-time": "300",
+    "x-nextjs-prerender": "1",
+    "x-next-cache-tags": "_N_T_/layout,_N_T_/dashboard/layout,_N_T_/dashboard/a2p/layout,_N_T_/dashboard/a2p/health/layout,_N_T_/dashboard/a2p/health/page,_N_T_/dashboard/a2p/health"
+  },
+  "segmentPaths": [
+    "/_tree",
+    "/_full",
+    "/dashboard/a2p/health/__PAGE__",
+    "/dashboard/a2p/health",
+    "/dashboard/a2p",
+    "/dashboard",
+    "/_index",
+    "/_head"
+  ]
+}
